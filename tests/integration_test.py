@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# pylint:disable=invalid-name
 """Perform integration tests for `orion.algo.robo`."""
 import os
 
@@ -12,6 +13,7 @@ from orion.core.worker.primary_algo import PrimaryAlgo
 from orion.testing.state import OrionState
 
 
+# pylint:disable=unused-argument
 def rosenbrock_function(x, y):
     """Evaluate a n-D rosenbrock function."""
     z = x - 34.56789

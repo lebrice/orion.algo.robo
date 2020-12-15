@@ -1,7 +1,7 @@
 """Perform tests for function `orion.algo.robo.rbayes.build_bounds`."""
 import numpy
 import numpy.testing
-import orion.algo.base  # noqa
+import orion.algo.base  # pylint:disable=unused-import
 import pytest
 from orion.algo.space import Categorical, Integer, Real, Space
 from orion.core.worker.transformer import build_required_space

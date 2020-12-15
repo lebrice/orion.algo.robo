@@ -20,6 +20,7 @@ from robo.models.wrapper_bohamiann import WrapperBohamiann
 class OrionGaussianProcessWrapper(GaussianProcess):
     """Wrapper for GaussianProcess"""
 
+    # pylint:disable=attribute-defined-outside-init
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
         self.rng.set_state(state_dict["model_rng_state"])
@@ -46,12 +47,14 @@ class OrionGaussianProcessWrapper(GaussianProcess):
 class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
     """Wrapper for GaussianProcess with MCMC"""
 
+    # pylint:disable=attribute-defined-outside-init
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
         self.rng.set_state(state_dict["model_rng_state"])
         self.prior.rng.set_state(state_dict["prior_rng_state"])
 
         if state_dict.get("model_p0", None) is not None:
+            # pylint:disable=invalid-name
             self.p0 = numpy.array(state_dict["model_p0"])
             self.burned = True
         elif hasattr(self, "p0"):
@@ -86,10 +89,12 @@ class OrionBohamiannWrapper(WrapperBohamiann):
         self.lower = lower
         self.upper = upper
 
+    # pylint:disable=no-self-use
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
         torch.random.set_rng_state(state_dict["torch"])
 
+    # pylint:disable=no-self-use
     def state_dict(self):
         """Return the current state of the optimizer so that it can be restored"""
         return {"torch": torch.random.get_rng_state()}

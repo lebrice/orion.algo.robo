@@ -14,7 +14,6 @@ import george
 import numpy
 from orion.algo.base import BaseAlgorithm
 from orion.algo.space import Space
-from orion.core.utils.points import flatten_dims, regroup_dims
 from pybnn.dngo import DNGO
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
@@ -80,22 +79,22 @@ def build_optimizer(
 
     """
     if acquisition_func == "ei":
-        a = EI(model)
+        acquisition_func = EI(model)
     elif acquisition_func == "log_ei":
-        a = LogEI(model)
+        acquisition_func = LogEI(model)
     elif acquisition_func == "pi":
-        a = PI(model)
+        acquisition_func = PI(model)
     elif acquisition_func == "lcb":
-        a = LCB(model)
+        acquisition_func = LCB(model)
     else:
         raise ValueError(
             "'{}' is not a valid acquisition function".format(acquisition_func)
         )
 
     if isinstance(model, OrionGaussianProcessMCMCWrapper):
-        acquisition_func = MarginalizationGPMCMC(a)
+        acquisition_func = MarginalizationGPMCMC(acquisition_func)
     else:
-        acquisition_func = a
+        acquisition_func = acquisition_func
 
     maximizer_rng = numpy.random.RandomState(maximizer_seed)
     if maximizer == "random":
@@ -219,6 +218,7 @@ class RoBO(BaseAlgorithm):
 
     requires = "real"
 
+    # pylint:disable=too-many-arguments
     def __init__(
         self,
         space: Space,
@@ -279,6 +279,7 @@ class RoBO(BaseAlgorithm):
 
         self.seed_rng(self.init_seed)
 
+    # pylint:disable=invalid-name
     @property
     def X(self):
         """Matrix containing trial points"""
@@ -289,6 +290,7 @@ class RoBO(BaseAlgorithm):
 
         return X
 
+    # pylint:disable=invalid-name
     @property
     def y(self):
         """Vector containing trial results"""
