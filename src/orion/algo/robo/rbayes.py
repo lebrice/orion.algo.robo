@@ -48,15 +48,12 @@ def build_bounds(space):
         low, high = dim.interval()
 
         shape = dim.shape
-        assert not shape or len(shape) == 1
-        if shape:
-            low = tuple(numpy.ones(shape) * low)
-            high = tuple(numpy.ones(shape) * high)
+        assert not shape or shape == [1]
 
         lower.append(low)
         upper.append(high)
 
-    return (numpy.array(flatten_dims(arr, space)) for arr in (lower, upper))
+    return list(map(numpy.array, (lower, upper)))
 
 
 def build_optimizer(
@@ -285,10 +282,10 @@ class RoBO(BaseAlgorithm):
     @property
     def X(self):
         """Matrix containing trial points"""
-        ref_point = flatten_dims(self.space.sample(1, seed=0)[0], self.space)
+        ref_point = self.space.sample(1, seed=0)[0]
         X = numpy.zeros((len(self._trials_info), len(ref_point)))
         for i, (point, _result) in enumerate(self._trials_info.values()):
-            X[i] = flatten_dims(point, self.space)
+            X[i] = point
 
         return X
 
@@ -372,9 +369,12 @@ class RoBO(BaseAlgorithm):
         New parameters must be compliant with the problem's domain `orion.algo.space.Space`.
 
         """
+        if num > 1:
+            raise AttributeError("RoBO wrapper does not support num > 1.")
+
         self.suggest_count += 1
         if self.suggest_count > self.n_init:
-            return [regroup_dims(self.robo.choose_next(self.X, self.y), self.space)]
+            return [self.robo.choose_next(self.X, self.y)]
         else:
             return self.space.sample(
                 num, seed=tuple(self.rng.randint(0, 1000000, size=3))

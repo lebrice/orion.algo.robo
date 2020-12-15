@@ -1,2 +1,1 @@
-
-git+git://github.com/automl/RoBO.git
+git+https://github.com/automl/RoBO.git
