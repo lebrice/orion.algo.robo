@@ -22,26 +22,6 @@ def rosenbrock_function(x, y):
 MODEL_TYPES = ["gp", "gp_mcmc", "bohamiann"]
 
 
-@pytest.fixture(scope="session")
-def database():
-    """Return Mongo database object to test with example entries."""
-    from pymongo import MongoClient
-
-    client = MongoClient(username="user", password="pass", authSource="orion_test")
-    database = client.orion_test
-    yield database
-    client.close()
-
-
-@pytest.fixture()
-def clean_db(database):
-    """Clean insert example experiment entries to collections."""
-    database.experiments.drop()
-    database.trials.drop()
-    database.workers.drop()
-    database.resources.drop()
-
-
 @pytest.fixture()
 def space():
     """Return an optimization space"""
