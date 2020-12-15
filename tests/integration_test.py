@@ -81,7 +81,7 @@ def test_seeding_bo(space, model_type, mocker):
     samples = []
     for i in range(n_init + 2):
         a = optimizer.suggest(1)[0]
-        optimizer.observe([a], [i / n_init])
+        optimizer.observe([a], [{"objective": i / n_init}])
         samples.append([a])
 
     assert spy.call_count == 2
@@ -95,7 +95,7 @@ def test_seeding_bo(space, model_type, mocker):
 
     for i in range(n_init + 2):
         b = optimizer.suggest(1)[0]
-        optimizer.observe([b], [i / n_init])
+        optimizer.observe([b], [{"objective": i / n_init}])
         samples[i].append(b)
 
     assert spy.call_count == 2
@@ -130,7 +130,7 @@ def test_set_state_bo(space, model_type, mocker):
 
     for i in range(n_init + 2):
         a = optimizer.suggest(1)[0]
-        optimizer.observe([a], [i / n_init])
+        optimizer.observe([a], [{"objective": i / (n_init + 2)}])
 
     assert spy.call_count == 2
 
@@ -199,8 +199,6 @@ def test_categorical():
             trial = exp.suggest()
             assert trial.params["x"] in [-5, -2, 0, 2, 5]
             exp.observe(trial, [dict(name="objective", type="objective", value=0)])
-
-    assert False
 
 
 def test_optimizer_two_inputs(monkeypatch):

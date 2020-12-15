@@ -52,14 +52,28 @@ def test_simple_space(space):
 
 def test_multidim_space(multidim_space):
     """Test that multidim is flattened"""
-    lower, upper = build_bounds(multidim_space)
+    lower, upper = build_bounds(
+        build_required_space(
+            multidim_space,
+            type_requirement="real",
+            shape_requirement="flattened",
+            dist_requirement="linear",
+        )
+    )
     numpy.testing.assert_equal(lower, numpy.array([2, 2, -3, 0]))
     numpy.testing.assert_equal(upper, numpy.array([4, 4, 3, 1]))
 
 
 def test_categorical(cat_space):
     """Test that categorical is mapped properly to vector embedding space"""
-    lower, upper = build_bounds(build_required_space("real", cat_space))
+    lower, upper = build_bounds(
+        build_required_space(
+            cat_space,
+            type_requirement="real",
+            shape_requirement="flattened",
+            dist_requirement="linear",
+        )
+    )
     # First dimension is 2d category which is mapped to (0, 1) with < 0.5 threshold
     # Three next dimensions are the one-hot dimensions of 3d category
     numpy.testing.assert_equal(lower, numpy.array([0, 0, 0, 0, -3, 0]))
