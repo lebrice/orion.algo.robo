@@ -11,10 +11,10 @@ it adds the properties `lower` and `upper` and the methods `seed()`, `state_dict
 and `set_state()`.
 """
 import numpy
+import torch
 from robo.models.gaussian_process import GaussianProcess
 from robo.models.gaussian_process_mcmc import GaussianProcessMCMC
 from robo.models.wrapper_bohamiann import WrapperBohamiann
-import torch
 
 
 class OrionGaussianProcessWrapper(GaussianProcess):
@@ -22,19 +22,19 @@ class OrionGaussianProcessWrapper(GaussianProcess):
 
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
-        self.rng.set_state(state_dict['model_rng_state'])
-        self.prior.rng.set_state(state_dict['prior_rng_state'])
-        self.kernel.set_parameter_vector(state_dict['model_kernel_parameter_vector'])
-        self.noise = state_dict['noise']
+        self.rng.set_state(state_dict["model_rng_state"])
+        self.prior.rng.set_state(state_dict["prior_rng_state"])
+        self.kernel.set_parameter_vector(state_dict["model_kernel_parameter_vector"])
+        self.noise = state_dict["noise"]
 
     def state_dict(self):
         """Return the current state of the optimizer so that it can be restored"""
         return {
-            'prior_rng_state': self.prior.rng.get_state(),
-            'model_rng_state': self.rng.get_state(),
-            'model_kernel_parameter_vector': self.kernel.get_parameter_vector().tolist(),
-            'noise': self.noise
-            }
+            "prior_rng_state": self.prior.rng.get_state(),
+            "model_rng_state": self.rng.get_state(),
+            "model_kernel_parameter_vector": self.kernel.get_parameter_vector().tolist(),
+            "noise": self.noise,
+        }
 
     def seed(self, seed):
         """Seed all internal RNGs"""
@@ -48,25 +48,25 @@ class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
 
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
-        self.rng.set_state(state_dict['model_rng_state'])
-        self.prior.rng.set_state(state_dict['prior_rng_state'])
+        self.rng.set_state(state_dict["model_rng_state"])
+        self.prior.rng.set_state(state_dict["prior_rng_state"])
 
-        if state_dict.get('model_p0', None) is not None:
-            self.p0 = numpy.array(state_dict['model_p0'])
+        if state_dict.get("model_p0", None) is not None:
+            self.p0 = numpy.array(state_dict["model_p0"])
             self.burned = True
-        elif hasattr(self, 'p0'):
-            delattr(self, 'p0')
+        elif hasattr(self, "p0"):
+            delattr(self, "p0")
             self.burned = False
 
     def state_dict(self):
         """Return the current state of the optimizer so that it can be restored"""
         s_dict = {
-            'prior_rng_state': self.prior.rng.get_state(),
-            'model_rng_state': self.rng.get_state(),
-            }
+            "prior_rng_state": self.prior.rng.get_state(),
+            "model_rng_state": self.rng.get_state(),
+        }
 
-        if hasattr(self, 'p0'):
-            s_dict['model_p0'] = self.p0.tolist()
+        if hasattr(self, "p0"):
+            s_dict["model_p0"] = self.p0.tolist()
 
         return s_dict
 
@@ -88,13 +88,11 @@ class OrionBohamiannWrapper(WrapperBohamiann):
 
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
-        torch.random.set_rng_state(state_dict['torch'])
+        torch.random.set_rng_state(state_dict["torch"])
 
     def state_dict(self):
         """Return the current state of the optimizer so that it can be restored"""
-        return {
-            'torch': torch.random.get_rng_state()
-            }
+        return {"torch": torch.random.get_rng_state()}
 
     def seed(self, seed):
         """Seed all internal RNGs"""

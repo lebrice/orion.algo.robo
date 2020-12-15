@@ -8,14 +8,12 @@ import os
 import orion.core.cli
 from orion.core.io.experiment_builder import ExperimentBuilder
 
-
-database_config = {
-    "type": 'EphemeralDB'}
+database_config = {"type": "EphemeralDB"}
 
 
 def get_algorithm_configs():
     """Read the algorihm configuration from available files"""
-    for file_name in glob.glob('*.yaml'):
+    for file_name in glob.glob("*.yaml"):
         name, _ = os.path.splitext(file_name)
         yield name, file_name
 
@@ -23,8 +21,9 @@ def get_algorithm_configs():
 def main(argv=None):
     """Execute the benchmark with cli"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--no-xserver', action='store_true',
-                        help='Do not show results with matplotlib')
+    parser.add_argument(
+        "--no-xserver", action="store_true", help="Do not show results with matplotlib"
+    )
 
     options = parser.parse_args(argv)
 
@@ -43,27 +42,43 @@ def execute_simulations():
         print(" ==== ")
         # experiment name based on file name
         orion.core.cli.main(
-            ["hunt", "--config", algo_config_file, '-n', algo_name,
-                "--max-trials", "20", "--pool-size", "1",
-             "./rosenbrock.py", "-x~uniform(-10, 10, shape=2)", "-y~uniform(-10, 10)"])
+            [
+                "hunt",
+                "--config",
+                algo_config_file,
+                "-n",
+                algo_name,
+                "--max-trials",
+                "20",
+                "--pool-size",
+                "1",
+                "./rosenbrock.py",
+                "-x~uniform(-10, 10, shape=2)",
+                "-y~uniform(-10, 10)",
+            ]
+        )
 
 
 def plot(no_xserver=False):
     """Plot the evolution of the best objective for each algorithm"""
     if no_xserver:
         import matplotlib
-        matplotlib.use('agg')
+
+        matplotlib.use("agg")
 
     import matplotlib.pyplot as plt
+
     for algo_name, _ in get_algorithm_configs():
 
         experiment = ExperimentBuilder().build_view_from(
-            {"name": algo_name, "database": database_config})
+            {"name": algo_name, "database": database_config}
+        )
 
         objectives = []
         sorted_trials = sorted(
-            experiment.fetch_trials({'status': 'completed'}),
-            key=lambda trial: trial.submit_time)
+            experiment.fetch_trials({"status": "completed"}),
+            key=lambda trial: trial.submit_time,
+        )
 
         for trial in sorted_trials:
             objectives.append(min([trial.objective.value] + objectives))
