@@ -28,7 +28,7 @@ jobs:
     #   - name: Install dependencies
     #     run: bash ./scripts/setup_gh.sh
     #   - name: Test with tox
-    #     run: tox -e ${{ matrix.toxenv }}
+    #     run: tox -vv -e ${{ matrix.toxenv }}
   test:
       # needs: pretest
     runs-on: ${{ matrix.platform }}
@@ -48,7 +48,7 @@ jobs:
     - name: Install dependencies
       run: bash ./scripts/setup_gh.sh
     - name: Test with tox
-      run: tox -e py
+      run: tox -vv -e py
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
@@ -69,9 +69,9 @@ jobs:
     - name: Install dependencies
       run: bash ./scripts/setup_gh.sh
     - name: Test packaging
-      run: tox -e packaging
+      run: tox -vv -e packaging
     - name: Build
-      run: tox -e build
+      run: tox -vv -e build
     - name: Publish distribution 📦 to Test PyPI
       if: startsWith(github.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@master
