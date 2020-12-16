@@ -85,10 +85,16 @@ class OrionBohamiannWrapper(WrapperBohamiann):
     """Wrapper for Bohamiann"""
 
     def __init__(
-        self, lower, upper, lr=1e-2, verbose=False, use_double_precision=True, **kwargs
+        self,
+        lower,
+        upper,
+        learning_rate=1e-2,
+        verbose=False,
+        use_double_precision=True,
+        **kwargs
     ):
 
-        self.lr = lr
+        self.lr = learning_rate  # pylint:disable=invalid-name
         self.verbose = verbose
         self.bnn = Bohamiann(
             get_network=get_default_network,

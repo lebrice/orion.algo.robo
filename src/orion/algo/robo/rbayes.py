@@ -14,7 +14,6 @@ import george
 import numpy
 from orion.algo.base import BaseAlgorithm
 from orion.algo.space import Space
-from pybnn.dngo import DNGO
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
 from robo.acquisition_functions.log_ei import LogEI
@@ -24,7 +23,6 @@ from robo.initial_design import init_latin_hypercube_sampling
 from robo.maximizers.differential_evolution import DifferentialEvolution
 from robo.maximizers.random_sampling import RandomSampling
 from robo.maximizers.scipy_optimizer import SciPyOptimizer
-from robo.models.random_forest import RandomForest
 from robo.priors.default_priors import DefaultPrior
 from robo.solver.bayesian_optimization import BayesianOptimization
 
