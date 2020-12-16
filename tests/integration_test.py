@@ -208,14 +208,17 @@ def test_optimizer_two_inputs(monkeypatch):
 @pytest.mark.parametrize("model_type", MODEL_TYPES)
 def test_optimizer_actually_optimize(model_type):
     """Check if the optimizer has better optimization than random search."""
-    best_random_search = 23.403275057472825
+    if model_type == "bohamiann":
+        pytest.xfail("Bohamiann takes too long to train")
+
+    best_random_search = 25.0
 
     with OrionState(experiments=[], trials=[]):
 
         exp = create_experiment(
             name="exp",
             space={"x": "uniform(-50, 50, precision=10)"},
-            max_trials=20,
+            max_trials=10,
             algorithms={"robo": {"model_type": model_type, "n_init": 5}},
             debug=True,
         )
