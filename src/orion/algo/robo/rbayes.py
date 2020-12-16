@@ -179,11 +179,12 @@ def build_model(lower, upper, model_type="gp_mcmc", model_seed=1, prior_seed=1):
             kernel,
             prior=prior,
             rng=model_rng,
-            normalize_output=False,
             normalize_input=True,
+            normalize_output=False,
             lower=lower,
             upper=upper,
         )
+
     elif model_type == "gp_mcmc":
         model = OrionGaussianProcessMCMCWrapper(
             kernel,
@@ -198,14 +199,24 @@ def build_model(lower, upper, model_type="gp_mcmc", model_seed=1, prior_seed=1):
             upper=upper,
         )
 
-    elif model_type == "rf":
-        model = RandomForest(rng=model_rng)
+    # TODO
+    # elif model_type == "rf":
+    #     model = RandomForest(rng=model_rng)
 
     elif model_type == "bohamiann":
-        model = OrionBohamiannWrapper(lower, upper)
+        model = OrionBohamiannWrapper(
+            normalize_input=True,
+            normalize_output=False,
+            sampling_method="adaptive_sghmc",
+            use_double_precision=True,
+            print_every_n_steps=100,
+            lower=lower,
+            upper=upper,
+        )
 
-    elif model_type == "dngo":
-        model = DNGO()
+    # TODO
+    # elif model_type == "dngo":
+    #     model = DNGO()
 
     else:
         raise ValueError("'{}' is not a valid model".format(model_type))

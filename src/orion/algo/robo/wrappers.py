@@ -83,8 +83,8 @@ class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
 class OrionBohamiannWrapper(WrapperBohamiann):
     """Wrapper for Bohamiann"""
 
-    def __init__(self, lower, upper):
-        super(OrionBohamiannWrapper, self).__init__()
+    def __init__(self, lower, upper, **kwargs):
+        super(OrionBohamiannWrapper, self).__init__(**kwargs)
 
         self.lower = lower
         self.upper = upper
