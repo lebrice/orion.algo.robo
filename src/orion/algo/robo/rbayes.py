@@ -216,7 +216,9 @@ def build_model(lower, upper, model_type="gp_mcmc", model_seed=1, prior_seed=1):
 class RoBO(BaseAlgorithm):
     """TODO: Class docstring"""
 
-    requires = "real"
+    requires_type = "real"
+    requires_dist = "linear"
+    requires_shape = "flattened"
 
     # pylint:disable=too-many-arguments
     def __init__(
