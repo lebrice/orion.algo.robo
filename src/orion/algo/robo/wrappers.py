@@ -12,9 +12,10 @@ and `set_state()`.
 """
 import numpy
 import torch
+from pybnn.bohamiann import Bohamiann
 from robo.models.gaussian_process import GaussianProcess
 from robo.models.gaussian_process_mcmc import GaussianProcessMCMC
-from robo.models.wrapper_bohamiann import WrapperBohamiann
+from robo.models.wrapper_bohamiann import WrapperBohamiann, get_default_network
 
 
 class OrionGaussianProcessWrapper(GaussianProcess):
@@ -83,8 +84,17 @@ class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
 class OrionBohamiannWrapper(WrapperBohamiann):
     """Wrapper for Bohamiann"""
 
-    def __init__(self, lower, upper, **kwargs):
-        super(OrionBohamiannWrapper, self).__init__(**kwargs)
+    def __init__(
+        self, lower, upper, lr=1e-2, verbose=False, use_double_precision=True, **kwargs
+    ):
+
+        self.lr = lr
+        self.verbose = verbose
+        self.bnn = Bohamiann(
+            get_network=get_default_network,
+            use_double_precision=use_double_precision,
+            **kwargs
+        )
 
         self.lower = lower
         self.upper = upper
