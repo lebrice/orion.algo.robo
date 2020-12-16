@@ -215,7 +215,7 @@ def test_optimizer_actually_optimize(model_type):
         exp = create_experiment(
             name="exp",
             space={"x": "uniform(-50, 50, precision=6)"},
-            max_trials=20,
+            max_trials=20 if model_type != "bohamiann" else 10,
             algorithms={"robo": {"model_type": model_type, "n_init": 5}},
             debug=True,
         )
