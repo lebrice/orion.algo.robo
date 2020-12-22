@@ -30,7 +30,7 @@ orion.algo.robo
 
 ----
 
-This `orion.algo`_ plugin was generated with `Cookiecutter`_ along with `@Epistimio`_'s `cookiecutter-orion.algo`_ template.
+This ``orion.algo`` plugin was generated with `Cookiecutter`_ along with `@Epistimio`_'s `cookiecutter-orion.algo`_ template.
 
 See Orion : https://github.com/Epistimio/orion
 
