@@ -19,14 +19,13 @@ orion.algo.robo
     :target: https://orion.algo-robo.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. |codecov| image:: https://codecov.io/gh/Lucasc-99/orion.algo.robo/branch/master/graph/badge.svg
-    :target: https://codecov.io/gh/Lucasc-99/orion.algo.robo
+.. |codecov| image:: https://codecov.io/gh/Epistimio/orion.algo.robo/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/Epistimio/orion.algo.robo
     :alt: Codecov Report
 
-.. |travis| image:: https://travis-ci.org/Lucasc-99/orion.algo.robo.svg?branch=master
-    :target: https://travis-ci.org/Lucasc-99/orion.algo.robo
-    :alt: Travis tests
-
+.. |github-actions| image:: https://github.com/Epistimio/orion.algo.robo/workflows/build/badge.svg?branch=master&event=pull_request
+    :target: https://github.com/Epistimio/orion.algo.robo/actions?query=workflow:build+branch:master+event:schedule
+    :alt: Github actions tests
 
 ----
 
