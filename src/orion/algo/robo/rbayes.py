@@ -233,7 +233,7 @@ class RoBO(BaseAlgorithm):
     def __init__(
         self,
         space: Space,
-        model_type="gp_mcmc",
+        model_type="gp",
         maximizer="random",
         acquisition_func="log_ei",
         n_init=20,
@@ -241,7 +241,6 @@ class RoBO(BaseAlgorithm):
         prior_seed=0,
         init_seed=0,
         maximizer_seed=0,
-        **kwargs
     ):
 
         super(RoBO, self).__init__(
@@ -253,7 +252,6 @@ class RoBO(BaseAlgorithm):
             prior_seed=prior_seed,
             init_seed=init_seed,
             maximizer_seed=maximizer_seed,
-            **kwargs
         )
 
         self.maximizer = maximizer
