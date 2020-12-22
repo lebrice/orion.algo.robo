@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# pylint:disable=invalid-name
 """Perform integration tests for `orion.algo.robo`."""
 import os
 
@@ -12,6 +13,7 @@ from orion.core.worker.primary_algo import PrimaryAlgo
 from orion.testing.state import OrionState
 
 
+# pylint:disable=unused-argument
 def rosenbrock_function(x, y):
     """Evaluate a n-D rosenbrock function."""
     z = x - 34.56789
@@ -206,14 +208,17 @@ def test_optimizer_two_inputs(monkeypatch):
 @pytest.mark.parametrize("model_type", MODEL_TYPES)
 def test_optimizer_actually_optimize(model_type):
     """Check if the optimizer has better optimization than random search."""
+    if model_type == "bohamiann":
+        pytest.xfail("Bohamiann takes too long to train")
+
     best_random_search = 25.0
 
     with OrionState(experiments=[], trials=[]):
 
         exp = create_experiment(
             name="exp",
-            space={"x": "uniform(-50, 50, precision=6)"},
-            max_trials=20,
+            space={"x": "uniform(-50, 50, precision=10)"},
+            max_trials=10,
             algorithms={"robo": {"model_type": model_type, "n_init": 5}},
             debug=True,
         )

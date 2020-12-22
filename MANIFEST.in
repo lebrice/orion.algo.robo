@@ -5,12 +5,13 @@ include *.rst
 # Control and setup helpers
 
 # Exclude development helpers
-exclude .travis.yml
 exclude tox.ini
 exclude *-requirements.txt
 exclude .pylintrc
 exclude codecov.yml
 exclude .mailmap
+exclude scripts/setup_gh.sh
+prune .github/
 
 # Include src, tests, docs
 recursive-include docs *.rst *.py *.gitkeep
@@ -19,6 +20,7 @@ prune docs/build
 prune docs/src/reference
 recursive-include src *.py
 recursive-include tests *.py *.yaml *.json *.txt *.yml *.in LICENSE
+include requirements.txt
 include tests/requirements.txt
 include versioneer.py
 include src/orion/algo/robo/_version.py

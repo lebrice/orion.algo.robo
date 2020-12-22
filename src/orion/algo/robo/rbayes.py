@@ -14,8 +14,6 @@ import george
 import numpy
 from orion.algo.base import BaseAlgorithm
 from orion.algo.space import Space
-from orion.core.utils.points import flatten_dims, regroup_dims
-from pybnn.dngo import DNGO
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
 from robo.acquisition_functions.log_ei import LogEI
@@ -25,7 +23,6 @@ from robo.initial_design import init_latin_hypercube_sampling
 from robo.maximizers.differential_evolution import DifferentialEvolution
 from robo.maximizers.random_sampling import RandomSampling
 from robo.maximizers.scipy_optimizer import SciPyOptimizer
-from robo.models.random_forest import RandomForest
 from robo.priors.default_priors import DefaultPrior
 from robo.solver.bayesian_optimization import BayesianOptimization
 
@@ -80,22 +77,22 @@ def build_optimizer(
 
     """
     if acquisition_func == "ei":
-        a = EI(model)
+        acquisition_func = EI(model)
     elif acquisition_func == "log_ei":
-        a = LogEI(model)
+        acquisition_func = LogEI(model)
     elif acquisition_func == "pi":
-        a = PI(model)
+        acquisition_func = PI(model)
     elif acquisition_func == "lcb":
-        a = LCB(model)
+        acquisition_func = LCB(model)
     else:
         raise ValueError(
             "'{}' is not a valid acquisition function".format(acquisition_func)
         )
 
     if isinstance(model, OrionGaussianProcessMCMCWrapper):
-        acquisition_func = MarginalizationGPMCMC(a)
+        acquisition_func = MarginalizationGPMCMC(acquisition_func)
     else:
-        acquisition_func = a
+        acquisition_func = acquisition_func
 
     maximizer_rng = numpy.random.RandomState(maximizer_seed)
     if maximizer == "random":
@@ -180,11 +177,12 @@ def build_model(lower, upper, model_type="gp_mcmc", model_seed=1, prior_seed=1):
             kernel,
             prior=prior,
             rng=model_rng,
-            normalize_output=False,
             normalize_input=True,
+            normalize_output=False,
             lower=lower,
             upper=upper,
         )
+
     elif model_type == "gp_mcmc":
         model = OrionGaussianProcessMCMCWrapper(
             kernel,
@@ -199,14 +197,24 @@ def build_model(lower, upper, model_type="gp_mcmc", model_seed=1, prior_seed=1):
             upper=upper,
         )
 
-    elif model_type == "rf":
-        model = RandomForest(rng=model_rng)
+    # TODO
+    # elif model_type == "rf":
+    #     model = RandomForest(rng=model_rng)
 
     elif model_type == "bohamiann":
-        model = OrionBohamiannWrapper(lower, upper)
+        model = OrionBohamiannWrapper(
+            normalize_input=True,
+            normalize_output=False,
+            sampling_method="adaptive_sghmc",
+            use_double_precision=True,
+            print_every_n_steps=100,
+            lower=lower,
+            upper=upper,
+        )
 
-    elif model_type == "dngo":
-        model = DNGO()
+    # TODO
+    # elif model_type == "dngo":
+    #     model = DNGO()
 
     else:
         raise ValueError("'{}' is not a valid model".format(model_type))
@@ -217,12 +225,15 @@ def build_model(lower, upper, model_type="gp_mcmc", model_seed=1, prior_seed=1):
 class RoBO(BaseAlgorithm):
     """TODO: Class docstring"""
 
-    requires = "real"
+    requires_type = "real"
+    requires_dist = "linear"
+    requires_shape = "flattened"
 
+    # pylint:disable=too-many-arguments
     def __init__(
         self,
         space: Space,
-        model_type="gp_mcmc",
+        model_type="gp",
         maximizer="random",
         acquisition_func="log_ei",
         n_init=20,
@@ -230,7 +241,6 @@ class RoBO(BaseAlgorithm):
         prior_seed=0,
         init_seed=0,
         maximizer_seed=0,
-        **kwargs
     ):
 
         super(RoBO, self).__init__(
@@ -242,7 +252,6 @@ class RoBO(BaseAlgorithm):
             prior_seed=prior_seed,
             init_seed=init_seed,
             maximizer_seed=maximizer_seed,
-            **kwargs
         )
 
         self.maximizer = maximizer
@@ -279,6 +288,7 @@ class RoBO(BaseAlgorithm):
 
         self.seed_rng(self.init_seed)
 
+    # pylint:disable=invalid-name
     @property
     def X(self):
         """Matrix containing trial points"""
@@ -289,6 +299,7 @@ class RoBO(BaseAlgorithm):
 
         return X
 
+    # pylint:disable=invalid-name
     @property
     def y(self):
         """Vector containing trial results"""
