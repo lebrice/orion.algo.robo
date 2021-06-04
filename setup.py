@@ -27,7 +27,11 @@ setup_args = dict(
     include_package_data=True,
     entry_points={
         "OptimizationAlgorithm": [
-            "robo = orion.algo.robo.rbayes:RoBO",
+            "robo_gp = orion.algo.robo.gp:RoBO_GP",
+            "robo_gp_mcmc = orion.algo.robo.gp:RoBO_GP_MCMC",
+            "robo_randomforest = orion.algo.robo.randomforest:RoBO_RandomForest",
+            "robo_dngo = orion.algo.robo.dngo:RoBO_DNGO",
+            "robo_bohamiann= orion.algo.robo.bohamiann:RoBO_BOHAMIANN",
         ],
     },
     install_requires=["orion>=0.1.11", "numpy", "torch>=1.2.0"],
@@ -58,7 +62,7 @@ setup_args["classifiers"] = [
     "Operating System :: Unix",
     "Programming Language :: Python",
     "Topic :: Scientific/Engineering",
-] + [("Programming Language :: Python :: %s" % x) for x in "3 3.6 3.7 3.8".split()]
+] + [("Programming Language :: Python :: %s" % x) for x in "3 3.6 3.7 3.8 3.9".split()]
 
 if __name__ == "__main__":
     setup(**setup_args)
