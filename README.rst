@@ -1,6 +1,6 @@
-===============
-orion.algo.robo
-===============
+======================
+RoBO Wrapper for Oríon
+======================
 
 
 .. |pypi| image:: https://img.shields.io/pypi/v/orion.algo.robo
@@ -29,34 +29,37 @@ orion.algo.robo
 
 ----
 
+This wrapper provides access through `Oríon`_ to several Bayesian optimization algorithms 
+in the library `RoBO`_.
+
 This ``orion.algo`` plugin was generated with `Cookiecutter`_ along with `@Epistimio`_'s `cookiecutter-orion.algo`_ template.
-
-See Orion : https://github.com/Epistimio/orion
-
 
 Installation
 ------------
 
 The RoBO wrapper is currently only supported on Linux.
 
-Before installing RoBO, make sure you have libeigen and swig installed. On ubuntu, you can install
-them with `apt-get`::
+Before installing RoBO, make sure you have ``libeigen`` and ``swig`` installed. 
+On ubuntu, you can install them with ``apt-get``
+
+.. code-block:: console
 
     $ sudo apt-get install libeigen3-dev swig
 
 One of the dependencies of RoBO does not declare its dependencies and therefore we need
-to install these dependencies first. The order of dependencies in `requirements.txt` reflects this
-order. To install them sequentially, use the following command::
+to install these dependencies first. The order of dependencies in ``requirements.txt`` 
+reflects this order. To install them sequentially, use the following command
+
+.. code-block:: console
 
     $ curl -s https://git.io/JLnCA | grep -v "^#" | xargs -n 1 -L 1 pip install
 
-Finally, you can install this package using PyPI::
+Finally, you can install this package using PyPI
+
+.. code-block:: console
 
     $ pip install orion.algo.robo
 
-
-Usage
------
 
 Contribute or Ask
 -----------------
@@ -76,18 +79,20 @@ Citation
 --------
 
 If you use this wrapper for your publications, please cite both
-`RoBO <https://github.com/automl/RoBO#citing-robo>` and 
-`Oríon <https://github.com/epistimio/orion#citation>`.
-
+`RoBO <https://github.com/automl/RoBO#citing-robo>`__ and 
+`Oríon <https://github.com/epistimio/orion#citation>`__. Please also cite
+the papers of the algorithms you used, such as DNGO or BOHAMIANN. See 
+the documentation of the algorithms to find corresponding original papers.
 
 License
 -------
 
 Distributed under the terms of the BSD-3-Clause license,
-"orion.algo.robo" is free and open source software.
+``orion.algo.robo`` is free and open source software.
 
 
 .. _`Cookiecutter`: https://github.com/audreyr/cookiecutter
 .. _`@Epistimio`: https://github.com/Epistimio
 .. _`cookiecutter-orion.algo`: https://github.com/Epistimio/cookiecutter-orion.algo
-.. _`orion`: https://github.com/Epistimio/orion
+.. _`Oríon`: https://github.com/Epistimio/orion
+.. _`RoBO`: https://github.com/automl/robo
