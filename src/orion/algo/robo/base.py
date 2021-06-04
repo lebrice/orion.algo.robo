@@ -195,7 +195,7 @@ class RoBO(BaseAlgorithm):
         self,
         space,
         seed=0,
-        n_init=20,
+        n_initial_points=20,
         maximizer="random",
         acquisition_func="log_ei",
         **kwargs,
@@ -207,7 +207,7 @@ class RoBO(BaseAlgorithm):
 
         super(RoBO, self).__init__(
             space,
-            n_init=n_init,
+            n_initial_points=n_initial_points,
             maximizer=maximizer,
             acquisition_func=acquisition_func,
             seed=seed,
@@ -337,7 +337,7 @@ class RoBO(BaseAlgorithm):
         Perform a step towards negative gradient and suggest that point.
 
         """
-        num = min(num, max(self.n_init - self.n_suggested, 1))
+        num = min(num, max(self.n_initial_points - self.n_suggested, 1))
 
         samples = []
         candidates = []
@@ -347,7 +347,7 @@ class RoBO(BaseAlgorithm):
                 if candidate:
                     self.register(candidate)
                     samples.append(candidate)
-            elif self.n_observed < self.n_init:
+            elif self.n_observed < self.n_initial_points:
                 candidates = self._suggest_random(num)
             else:
                 candidates = self._suggest_bo(max(num - len(samples), 0))

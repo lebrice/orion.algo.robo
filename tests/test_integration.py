@@ -88,7 +88,7 @@ class TestRoBO_GP(BaseRoBOTests):
     config = {
         "maximizer": "random",
         "acquisition_func": "log_ei",
-        "n_init": N_INIT,
+        "n_initial_points": N_INIT,
         "normalize_input": False,
         "normalize_output": True,
         "seed": 1234,
@@ -104,7 +104,7 @@ class TestRoBO_GP_MCMC(BaseRoBOTests):
         "normalize_output": False,
         "chain_length": 10,
         "burnin_steps": 2,
-        "n_init": N_INIT,
+        "n_initial_points": N_INIT,
         "seed": 1234,
     }
 
@@ -119,7 +119,7 @@ class TestRoBO_RandomForest(BaseRoBOTests):
         "n_points_per_tree": 5,
         "compute_oob_error": True,
         "return_total_variance": False,
-        "n_init": N_INIT,
+        "n_initial_points": N_INIT,
         "seed": 1234,
     }
 
@@ -138,7 +138,7 @@ class TestRoBO_DNGO(TestRoBO_GP):
         "batch_size": 10,
         "num_epochs": 10,
         "adapt_epoch": 20,
-        "n_init": N_INIT,
+        "n_initial_points": N_INIT,
         "seed": 1234,
     }
 
@@ -153,7 +153,9 @@ class TestRoBO_DNGO(TestRoBO_GP):
             batch_size=self.config["batch_size"] + 1,
         )
 
-        tmp_config = modified_config(self.config, n_init=N_INIT + 1, **train_config)
+        tmp_config = modified_config(
+            self.config, n_initial_points=N_INIT + 1, **train_config
+        )
 
         algo = self.create_algo(tmp_config)
 
@@ -185,7 +187,7 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         "mdecay": 0.05,
         "continue_training": False,
         "verbose": False,
-        "n_init": N_INIT,
+        "n_initial_points": N_INIT,
         "seed": 1234,
     }
 
@@ -207,7 +209,7 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
             self.config,
             sampling_method="sgld",
             use_double_precision=False,
-            n_init=N_INIT + 1,
+            n_initial_points=N_INIT + 1,
             **train_config
         )
 
@@ -223,7 +225,9 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
             == tmp_config["use_double_precision"]
         )
 
-        spy = self.spy_phase(mocker, tmp_config["n_init"] + 1, algo, "model.bnn.train")
+        spy = self.spy_phase(
+            mocker, tmp_config["n_initial_points"] + 1, algo, "model.bnn.train"
+        )
         algo.suggest(1)
         assert spy.call_count > 0
         assert spy.call_args[1] == train_config
