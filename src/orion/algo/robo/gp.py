@@ -1,5 +1,4 @@
 import numpy
-
 from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
 from robo.models.gaussian_process import GaussianProcess
 from robo.models.gaussian_process_mcmc import GaussianProcessMCMC

@@ -1,6 +1,5 @@
 import numpy
 import torch
-
 from pybnn.dngo import DNGO
 
 from orion.algo.robo.base import RoBO, build_bounds, build_kernel, infer_n_hypers
