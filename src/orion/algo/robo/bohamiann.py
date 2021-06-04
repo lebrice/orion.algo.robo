@@ -1,10 +1,12 @@
-import numpy
+"""
+Wrapper for RoBO with BOHAMIANN
+"""
 import torch
 from pybnn.bohamiann import Bohamiann
 from robo.models.base_model import BaseModel
 from robo.models.wrapper_bohamiann import get_default_network
 
-from orion.algo.robo.base import RoBO, build_bounds, build_kernel, infer_n_hypers
+from orion.algo.robo.base import RoBO, build_bounds
 
 
 class RoBO_BOHAMIANN(RoBO):
@@ -200,7 +202,7 @@ class OrionBohamiannWrapper(BaseModel):
         self.num_steps = num_steps
         self.keep_every = keep_every
         self.burnin_steps = burnin_steps
-        self.learning_rate = learning_rate  # pylint:disable=invalid-name
+        self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.epsilon = epsilon
         self.mdecay = mdecay
@@ -237,6 +239,9 @@ class OrionBohamiannWrapper(BaseModel):
         torch.manual_seed(seed)
 
     def train(self, X, y, **kwargs):
+        """
+        Sets num_steps and burnin_steps before training with parent's train()
+        """
         self.X = X
         self.y = y
 
@@ -262,7 +267,9 @@ class OrionBohamiannWrapper(BaseModel):
             mdecay=self.mdecay,
             continue_training=False,
             verbose=self.verbose,
+            **kwargs
         )
 
     def predict(self, X_test):
+        """Predict using bnn.predict()"""
         return self.bnn.predict(X_test)

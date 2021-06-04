@@ -1,4 +1,6 @@
-import numpy
+"""
+Wrapper for RoBO with Random Forest
+"""
 import pyrfr.regression as reg
 from robo.models.random_forest import RandomForest
 
@@ -134,12 +136,18 @@ class OrionRandomForestWrapper(RandomForest):
         self.upper = upper
 
     def train(self, X, y, **kwargs):
+        """
+        Seeds the RNG of Random Forest before calling parent's train().
+        """
         # NOTE: We cannot save `reg_rng` state so instead we control it
         #       with random integers sampled from `rng` and keep track of `rng` state.
         self.reg_rng = reg.default_random_engine(int(self.rng.randint(10e8)))
         super(OrionRandomForestWrapper, self).train(X, y, **kwargs)
 
     def predict(self, X_test, **kwargs):
+        """
+        Seeds the RNG of Random Forest before calling parent's predict().
+        """
         # NOTE: We cannot save `reg_rng` state so instead we control it
         #       with random integers sampled from `rng` and keep track of `rng` state.
         self.reg_rng = reg.default_random_engine(int(self.rng.randint(10e8)))

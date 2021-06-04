@@ -1,10 +1,12 @@
+"""
+Base class for RoBO algorithms.
+"""
 import george
 import numpy
 from orion.algo.base import BaseAlgorithm
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
 from robo.acquisition_functions.log_ei import LogEI
-from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
 from robo.acquisition_functions.pi import PI
 from robo.initial_design import init_latin_hypercube_sampling
 from robo.maximizers.differential_evolution import DifferentialEvolution
@@ -123,18 +125,13 @@ def build_optimizer(model, maximizer, acquisition_func):
         Optimizer
 
     """
-    maximizer_rng = numpy.random.RandomState(maximizer_seed)
     if maximizer == "random":
-        max_func = RandomSampling(
-            acquisition_func, model.lower, model.upper, rng=maximizer_rng
-        )
+        max_func = RandomSampling(acquisition_func, model.lower, model.upper, rng=None)
     elif maximizer == "scipy":
-        max_func = SciPyOptimizer(
-            acquisition_func, model.lower, model.upper, rng=maximizer_rng
-        )
+        max_func = SciPyOptimizer(acquisition_func, model.lower, model.upper, rng=None)
     elif maximizer == "differential_evolution":
         max_func = DifferentialEvolution(
-            acquisition_func, model.lower, model.upper, rng=maximizer_rng
+            acquisition_func, model.lower, model.upper, rng=None
         )
     else:
         raise ValueError(
@@ -194,7 +191,6 @@ class RoBO(BaseAlgorithm):
     requires_dist = "linear"
     requires_shape = "flattened"
 
-    # pylint:disable=too-many-arguments
     def __init__(
         self,
         space,
@@ -258,7 +254,6 @@ class RoBO(BaseAlgorithm):
 
         self.seed_rng(self.seed)
 
-    # pylint:disable=invalid-name
     @property
     def X(self):
         """Matrix containing trial points"""
@@ -271,7 +266,6 @@ class RoBO(BaseAlgorithm):
 
         return X
 
-    # pylint:disable=invalid-name
     @property
     def y(self):
         """Vector containing trial results"""

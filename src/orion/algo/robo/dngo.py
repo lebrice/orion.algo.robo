@@ -1,3 +1,6 @@
+"""
+Wrapper for RoBO with DNGO
+"""
 import numpy
 import torch
 from pybnn.dngo import DNGO
@@ -143,8 +146,8 @@ class OrionDNGOWrapper(DNGO):
     prior: Prior object
         Prior for alpa and beta. If set to None the default prior is used
     do_mcmc: bool
-        If set to true different values for alpha and beta are sampled via MCMC from the marginal log likelihood
-        Otherwise the marginal log likehood is optimized with scipy fmin function
+        If set to true different values for alpha and beta are sampled via MCMC from the marginal
+        log likelihood. Otherwise the marginal log likehood is optimized with scipy fmin function.
     n_hypers : int
         Number of samples for alpha and beta
     chain_length : int
@@ -166,14 +169,12 @@ class OrionDNGOWrapper(DNGO):
         self.lower = lower
         self.upper = upper
 
-    # pylint:disable=no-self-use
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
         torch.random.set_rng_state(state_dict["torch"])
         self.rng.set_state(state_dict["rng"])
         self.prior.rng.set_state(state_dict["prior_rng"])
 
-    # pylint:disable=no-self-use
     def state_dict(self):
         """Return the current state of the optimizer so that it can be restored"""
         return {
@@ -184,8 +185,8 @@ class OrionDNGOWrapper(DNGO):
 
     def seed(self, seed):
         """Seed all internal RNGs"""
-        rng = numpy.random.RandomState(seed)
-        rand_nums = self.rng.randint(1, 10e8, 3)
+        self.rng = numpy.random.RandomState(seed)
+        rand_nums = self.rng.randint(1, 10e8, 2)
         pytorch_seed = rand_nums[0]
 
         if torch.cuda.is_available():
@@ -195,5 +196,4 @@ class OrionDNGOWrapper(DNGO):
 
         torch.manual_seed(pytorch_seed)
 
-        self.rng.seed(rand_nums[1])
-        self.prior.rng.seed(rand_nums[2])
+        self.prior.rng.seed(rand_nums[1])

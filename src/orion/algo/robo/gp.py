@@ -1,3 +1,7 @@
+"""
+Wrapper for RoBO with GP (and MCMC)
+"""
+
 import numpy
 from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
 from robo.models.gaussian_process import GaussianProcess
@@ -5,7 +9,6 @@ from robo.models.gaussian_process_mcmc import GaussianProcessMCMC
 
 from orion.algo.robo.base import (
     RoBO,
-    build_acquisition_func,
     build_bounds,
     build_kernel,
     build_prior,
@@ -200,7 +203,6 @@ class OrionGaussianProcessWrapper(GaussianProcess):
 
     """
 
-    # pylint:disable=attribute-defined-outside-init
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
         self.rng.set_state(state_dict["model_rng_state"])
@@ -255,14 +257,12 @@ class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
 
     """
 
-    # pylint:disable=attribute-defined-outside-init
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
         self.rng.set_state(state_dict["model_rng_state"])
         self.prior.rng.set_state(state_dict["prior_rng_state"])
 
         if state_dict.get("model_p0", None) is not None:
-            # pylint:disable=invalid-name
             self.p0 = numpy.array(state_dict["model_p0"])
             self.burned = True
         elif hasattr(self, "p0"):
