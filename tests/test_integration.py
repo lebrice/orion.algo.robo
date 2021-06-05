@@ -185,7 +185,6 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         "batch_size": 10,
         "epsilon": 1e-10,
         "mdecay": 0.05,
-        "continue_training": False,
         "verbose": False,
         "n_initial_points": N_INIT,
         "seed": 1234,
@@ -201,7 +200,6 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
             batch_size=self.config["batch_size"] + 1,
             epsilon=self.config["epsilon"] * 2,
             mdecay=self.config["mdecay"] + 0.01,
-            continue_training=False,
             verbose=True,
         )
 
