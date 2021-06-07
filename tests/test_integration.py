@@ -215,6 +215,10 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         train_config["num_burn_in_steps"] = train_config.pop("burnin_steps")
         train_config["lr"] = train_config.pop("learning_rate")
 
+        # Add arguments that are not configurable
+        train_config["do_optimize"] = True
+        train_config["continue_training"] = False
+
         algo = self.create_algo(tmp_config)
 
         assert algo.algorithm.model.bnn.sampling_method == tmp_config["sampling_method"]
