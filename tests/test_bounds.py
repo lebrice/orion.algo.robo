@@ -6,7 +6,7 @@ import pytest
 from orion.algo.space import Categorical, Integer, Real, Space
 from orion.core.worker.transformer import build_required_space
 
-from orion.algo.robo.rbayes import build_bounds
+from orion.algo.robo.base import build_bounds
 
 
 @pytest.fixture()
