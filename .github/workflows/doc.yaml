@@ -15,7 +15,6 @@ jobs:
   build_docs_job:
     runs-on: ubuntu-latest
     steps:
- 
     - uses: actions/checkout@v1
     - name: Set up Python 3.7
       uses: actions/setup-python@v2
@@ -25,8 +24,7 @@ jobs:
       run: bash ./scripts/setup_gh.sh
     - name: Test with tox
       run: tox -vv -e docs
-    - name: what?
-    - name: Execute script to build our documentation and update pages
+    - name: Deploy doc on gh-pages
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: bash docs/deploy.sh
