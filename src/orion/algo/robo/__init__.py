@@ -1,22 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-:mod:`orion.algo.robo -- TODO
-==================================
-
-.. module:: robo
-    :platform: Unix
-    :synopsis: TODO
-
-TODO: Write long description
+Wrapper for RoBO
 """
 
 __descr__ = "TODO"
 __license__ = "BSD 3-Clause"
-__author__ = u"lucascecchi"
-__author_short__ = u"lucas"
-__author_email__ = "lucascecchi@gmail.com"
-__copyright__ = u"2020, lucascecchi"
-__url__ = "https://github.com/Lucasc-99/orion.algo.robo"
+__author__ = u"Epistímio"
+__author_short__ = u"Epistímio"
+__author_email__ = "xavier.bouthillier@umontreal.ca"
+__copyright__ = u"2021, Epistímio"
+__url__ = "https://github.com/Epistimio/orion.algo.robo"
 
 from ._version import get_versions
 
