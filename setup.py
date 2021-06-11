@@ -57,7 +57,7 @@ setup_args["classifiers"] = [
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GPU GPLv3",
+    "License :: OSI Approved :: BSD License",
     "Operating System :: POSIX",
     "Operating System :: Unix",
     "Programming Language :: Python",
