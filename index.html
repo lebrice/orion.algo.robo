@@ -1,0 +1,305 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>RoBO Wrapper for Oríon &mdash; orion.algo.robo v0.1.0.post4 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="RoBO Gaussian Process" href="usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="#" class="icon icon-home"> orion.algo.robo
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                v0.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Welcome</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="index.html#http://">Introduction</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">RoBO Gaussian Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html#robo-gaussian-process-with-mcmc">RoBO Gaussian Process with MCMC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html#robo-random-forest">RoBO Random Forest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html#robo-dngo">RoBO DNGO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html#robo-bohamiann">RoBO BOHAMIANN</a></li>
+</ul>
+<p class="caption"><span class="caption-text">External links</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable">Oríon documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable/user/algorithms.html">Other algorithms</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">orion.algo.robo</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>RoBO Wrapper for Oríon</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <div class="rst-breadcrumbs-buttons" role="navigation" aria-label="breadcrumb navigation">
+      
+        <a href="usage.html" class="btn btn-neutral float-right" title="RoBO Gaussian Process" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+      
+      
+  </div>
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="robo-wrapper-for-orion">
+<h1>RoBO Wrapper for Oríon<a class="headerlink" href="#robo-wrapper-for-orion" title="Permalink to this headline">¶</a></h1>
+<hr class="docutils" />
+<p>This wrapper provides access through <a class="reference external" href="https://github.com/Epistimio/orion">Oríon</a> to several Bayesian optimization algorithms
+in the library <a class="reference external" href="https://github.com/automl/robo">RoBO</a>.</p>
+<p>This <code class="docutils literal notranslate"><span class="pre">orion.algo</span></code> plugin was generated with <a class="reference external" href="https://github.com/audreyr/cookiecutter">Cookiecutter</a> along with <a class="reference external" href="https://github.com/Epistimio">&#64;Epistimio</a>’s <a class="reference external" href="https://github.com/Epistimio/cookiecutter-orion.algo">cookiecutter-orion.algo</a> template.</p>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>The RoBO wrapper is currently only supported on Linux.</p>
+<p>Before installing RoBO, make sure you have <code class="docutils literal notranslate"><span class="pre">libeigen</span></code> and <code class="docutils literal notranslate"><span class="pre">swig</span></code> installed.
+On ubuntu, you can install them with <code class="docutils literal notranslate"><span class="pre">apt-get</span></code></p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>sudo apt-get install libeigen3-dev swig
+</pre></div>
+</div>
+<p>One of the dependencies of RoBO does not declare its dependencies and therefore we need
+to install these dependencies first. The order of dependencies in <code class="docutils literal notranslate"><span class="pre">requirements.txt</span></code>
+reflects this order. To install them sequentially, use the following command</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>curl -s https://git.io/JLnCA <span class="p">|</span> grep -v <span class="s2">&quot;^#&quot;</span> <span class="p">|</span> xargs -n <span class="m">1</span> -L <span class="m">1</span> pip install
+</pre></div>
+</div>
+<p>Finally, you can install this package using PyPI</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>pip install orion.algo.robo
+</pre></div>
+</div>
+</div>
+<div class="section" id="contribute-or-ask">
+<h2>Contribute or Ask<a class="headerlink" href="#contribute-or-ask" title="Permalink to this headline">¶</a></h2>
+<p>Do you have a question or issues? Do you want to report a bug or suggest a feature? Name it! Please
+contact us by opening an issue in our repository below and checkout Oríon’s
+<a class="reference external" href="https://github.com/Epistimio/orion/blob/develop/CONTRIBUTING.md">contribution guidelines</a>:</p>
+<ul class="simple">
+<li><p>Issue Tracker: <a class="reference external" href="https://github.com/Epistimio/orion.algo.robo/issues">https://github.com/Epistimio/orion.algo.robo/issues</a></p></li>
+<li><p>Source Code: <a class="reference external" href="https://github.com/Epistimio/orion.algo.robo">https://github.com/Epistimio/orion.algo.robo</a></p></li>
+</ul>
+<p>Start by starring and forking our Github repo!</p>
+<p>Thanks for the support!</p>
+</div>
+<div class="section" id="citation">
+<h2>Citation<a class="headerlink" href="#citation" title="Permalink to this headline">¶</a></h2>
+<p>If you use this wrapper for your publications, please cite both
+<a class="reference external" href="https://github.com/automl/RoBO#citing-robo">RoBO</a> and
+<a class="reference external" href="https://github.com/epistimio/orion#citation">Oríon</a>. Please also cite
+the papers of the algorithms you used, such as DNGO or BOHAMIANN. See
+the documentation of the algorithms to find corresponding original papers.</p>
+</div>
+<div class="section" id="license">
+<h2>License<a class="headerlink" href="#license" title="Permalink to this headline">¶</a></h2>
+<p>Distributed under the terms of the BSD-3-Clause license,
+<code class="docutils literal notranslate"><span class="pre">orion.algo.robo</span></code> is free and open source software.</p>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Welcome</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="index.html#http://">Introduction</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">RoBO Gaussian Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html#robo-gaussian-process-with-mcmc">RoBO Gaussian Process with MCMC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html#robo-random-forest">RoBO Random Forest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html#robo-dngo">RoBO DNGO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html#robo-bohamiann">RoBO BOHAMIANN</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">External links</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable">Oríon documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable/user/algorithms.html">Other algorithms</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="usage.html" class="btn btn-neutral float-right" title="RoBO Gaussian Process" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Epistímio.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

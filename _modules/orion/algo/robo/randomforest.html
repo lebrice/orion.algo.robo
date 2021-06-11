@@ -1,0 +1,387 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>orion.algo.robo.randomforest &mdash; orion.algo.robo v0.1.0.post4 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> orion.algo.robo
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                v0.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Welcome</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="index.html#http://">Introduction</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html">RoBO Gaussian Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-gaussian-process-with-mcmc">RoBO Gaussian Process with MCMC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-random-forest">RoBO Random Forest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-dngo">RoBO DNGO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-bohamiann">RoBO BOHAMIANN</a></li>
+</ul>
+<p class="caption"><span class="caption-text">External links</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable">Oríon documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable/user/algorithms.html">Other algorithms</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">orion.algo.robo</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>orion.algo.robo.randomforest</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for orion.algo.robo.randomforest</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Wrapper for RoBO with Random Forest</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">pyrfr.regression</span> <span class="k">as</span> <span class="nn">reg</span>
+<span class="kn">from</span> <span class="nn">robo.models.random_forest</span> <span class="kn">import</span> <span class="n">RandomForest</span>
+
+<span class="kn">from</span> <span class="nn">orion.algo.robo.base</span> <span class="kn">import</span> <span class="n">RoBO</span><span class="p">,</span> <span class="n">build_bounds</span>
+
+
+<div class="viewcode-block" id="RoBO_RandomForest"><a class="viewcode-back" href="../../../../usage.html#orion.algo.robo.randomforest.RoBO_RandomForest">[docs]</a><span class="k">class</span> <span class="nc">RoBO_RandomForest</span><span class="p">(</span><span class="n">RoBO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for RoBO with</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    space: ``orion.algo.space.Space``</span>
+<span class="sd">        Optimisation space with priors for each dimension.</span>
+<span class="sd">    seed: None, int or sequence of int</span>
+<span class="sd">        Seed to sample initial points and candidates points.</span>
+<span class="sd">        Default: 0.</span>
+<span class="sd">    n_initial_points: int</span>
+<span class="sd">        Number of initial points randomly sampled. If new points</span>
+<span class="sd">        are requested and less than `n_initial_points` are observed,</span>
+<span class="sd">        the next points will also be sampled randomly instead of being</span>
+<span class="sd">        sampled from the parzen estimators.</span>
+<span class="sd">        Default: ``20``</span>
+<span class="sd">    maximizer: str</span>
+<span class="sd">        The optimizer for the acquisition function.</span>
+<span class="sd">        Can be one of ``{&quot;random&quot;, &quot;scipy&quot;, &quot;differential_evolution&quot;}``.</span>
+<span class="sd">        Defaults to &#39;random&#39;</span>
+<span class="sd">    acquisition_func: str</span>
+<span class="sd">        Name of the acquisition function. Can be one of ``[&#39;ei&#39;, &#39;log_ei&#39;, &#39;pi&#39;, &#39;lcb&#39;]``.</span>
+<span class="sd">    num_trees: int</span>
+<span class="sd">        The number of trees in the random forest. Defaults to 30.</span>
+<span class="sd">    do_bootstrapping: bool</span>
+<span class="sd">        Turns on / off bootstrapping in the random forest. Defaults to ``True``.</span>
+<span class="sd">    n_points_per_tree: int</span>
+<span class="sd">        Number of data point per tree. If set to 0 then we will use all data points in each tree.</span>
+<span class="sd">        Defaults to 0.</span>
+<span class="sd">    compute_oob_error: bool</span>
+<span class="sd">        Turns on / off calculation of out-of-bag error. Defaults to ``False``.</span>
+<span class="sd">    return_total_variance: bool</span>
+<span class="sd">        Return law of total variance (mean of variances + variance of means, if True)</span>
+<span class="sd">        or explained variance (variance of means, if False). Defaults to ``True``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">space</span><span class="p">,</span>
+        <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">n_initial_points</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+        <span class="n">maximizer</span><span class="o">=</span><span class="s2">&quot;random&quot;</span><span class="p">,</span>
+        <span class="n">acquisition_func</span><span class="o">=</span><span class="s2">&quot;log_ei&quot;</span><span class="p">,</span>
+        <span class="n">num_trees</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+        <span class="n">do_bootstrapping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_points_per_tree</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">compute_oob_error</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">return_total_variance</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">RoBO_RandomForest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">space</span><span class="p">,</span>
+            <span class="n">maximizer</span><span class="o">=</span><span class="n">maximizer</span><span class="p">,</span>
+            <span class="n">acquisition_func</span><span class="o">=</span><span class="n">acquisition_func</span><span class="p">,</span>
+            <span class="n">num_trees</span><span class="o">=</span><span class="n">num_trees</span><span class="p">,</span>
+            <span class="n">do_bootstrapping</span><span class="o">=</span><span class="n">do_bootstrapping</span><span class="p">,</span>
+            <span class="n">n_points_per_tree</span><span class="o">=</span><span class="n">n_points_per_tree</span><span class="p">,</span>
+            <span class="n">compute_oob_error</span><span class="o">=</span><span class="n">compute_oob_error</span><span class="p">,</span>
+            <span class="n">return_total_variance</span><span class="o">=</span><span class="n">return_total_variance</span><span class="p">,</span>
+            <span class="n">n_initial_points</span><span class="o">=</span><span class="n">n_initial_points</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="n">build_bounds</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">OrionRandomForestWrapper</span><span class="p">(</span>
+            <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">num_trees</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_trees</span><span class="p">,</span>
+            <span class="n">do_bootstrapping</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">do_bootstrapping</span><span class="p">,</span>
+            <span class="n">n_points_per_tree</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_points_per_tree</span><span class="p">,</span>
+            <span class="n">compute_oob_error</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">compute_oob_error</span><span class="p">,</span>
+            <span class="n">return_total_variance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">return_total_variance</span><span class="p">,</span>
+            <span class="n">lower</span><span class="o">=</span><span class="n">lower</span><span class="p">,</span>
+            <span class="n">upper</span><span class="o">=</span><span class="n">upper</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">OrionRandomForestWrapper</span><span class="p">(</span><span class="n">RandomForest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for RoBO&#39;s RandomForest model</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lower : np.array(D,)</span>
+<span class="sd">        Lower bound of the input space which is used for the input space normalization</span>
+<span class="sd">    upper : np.array(D,)</span>
+<span class="sd">        Upper bound of the input space which is used for the input space normalization</span>
+<span class="sd">    num_trees: int</span>
+<span class="sd">        The number of trees in the random forest.</span>
+<span class="sd">    do_bootstrapping: bool</span>
+<span class="sd">        Turns on / off bootstrapping in the random forest.</span>
+<span class="sd">    n_points_per_tree: int</span>
+<span class="sd">        Number of data point per tree. If set to 0 then we will use all data points in each tree</span>
+<span class="sd">    compute_oob_error: bool</span>
+<span class="sd">        Turns on / off calculation of out-of-bag error. Default: False</span>
+<span class="sd">    return_total_variance: bool</span>
+<span class="sd">        Return law of total variance (mean of variances + variance of means, if True)</span>
+<span class="sd">        or explained variance (variance of means, if False). Default: True</span>
+<span class="sd">    rng: np.random.RandomState</span>
+<span class="sd">        Random number generator</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">lower</span><span class="p">,</span>
+        <span class="n">upper</span><span class="p">,</span>
+        <span class="n">num_trees</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+        <span class="n">do_bootstrapping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_points_per_tree</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">compute_oob_error</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">return_total_variance</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">OrionRandomForestWrapper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">num_trees</span><span class="o">=</span><span class="n">num_trees</span><span class="p">,</span>
+            <span class="n">do_bootstrapping</span><span class="o">=</span><span class="n">do_bootstrapping</span><span class="p">,</span>
+            <span class="n">n_points_per_tree</span><span class="o">=</span><span class="n">n_points_per_tree</span><span class="p">,</span>
+            <span class="n">compute_oob_error</span><span class="o">=</span><span class="n">compute_oob_error</span><span class="p">,</span>
+            <span class="n">return_total_variance</span><span class="o">=</span><span class="n">return_total_variance</span><span class="p">,</span>
+            <span class="n">rng</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">lower</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">upper</span>
+
+    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Seeds the RNG of Random Forest before calling parent&#39;s train().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># NOTE: We cannot save `reg_rng` state so instead we control it</span>
+        <span class="c1">#       with random integers sampled from `rng` and keep track of `rng` state.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reg_rng</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">default_random_engine</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mf">10e8</span><span class="p">)))</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OrionRandomForestWrapper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Seeds the RNG of Random Forest before calling parent&#39;s predict().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># NOTE: We cannot save `reg_rng` state so instead we control it</span>
+        <span class="c1">#       with random integers sampled from `rng` and keep track of `rng` state.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reg_rng</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">default_random_engine</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mf">10e8</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">OrionRandomForestWrapper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restore the state of the optimizer&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;model_rng_state&quot;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the current state of the optimizer so that it can be restored&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;model_rng_state&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">get_state</span><span class="p">(),</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">seed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Seed all internal RNGs&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Epistímio.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

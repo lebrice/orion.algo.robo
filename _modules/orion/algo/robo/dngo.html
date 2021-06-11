@@ -1,0 +1,418 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>orion.algo.robo.dngo &mdash; orion.algo.robo v0.1.0.post4 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> orion.algo.robo
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                v0.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Welcome</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="index.html#http://">Introduction</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html">RoBO Gaussian Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-gaussian-process-with-mcmc">RoBO Gaussian Process with MCMC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-random-forest">RoBO Random Forest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-dngo">RoBO DNGO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-bohamiann">RoBO BOHAMIANN</a></li>
+</ul>
+<p class="caption"><span class="caption-text">External links</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable">Oríon documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable/user/algorithms.html">Other algorithms</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">orion.algo.robo</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>orion.algo.robo.dngo</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for orion.algo.robo.dngo</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Wrapper for RoBO with DNGO</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">pybnn.dngo</span> <span class="kn">import</span> <span class="n">DNGO</span>
+
+<span class="kn">from</span> <span class="nn">orion.algo.robo.base</span> <span class="kn">import</span> <span class="n">RoBO</span><span class="p">,</span> <span class="n">build_bounds</span><span class="p">,</span> <span class="n">build_kernel</span><span class="p">,</span> <span class="n">infer_n_hypers</span>
+
+
+<div class="viewcode-block" id="RoBO_DNGO"><a class="viewcode-back" href="../../../../usage.html#orion.algo.robo.dngo.RoBO_DNGO">[docs]</a><span class="k">class</span> <span class="nc">RoBO_DNGO</span><span class="p">(</span><span class="n">RoBO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for RoBO with DNGO</span>
+
+<span class="sd">    For more information on the algorithm,</span>
+<span class="sd">    see original paper at http://proceedings.mlr.press/v37/snoek15.html.</span>
+
+<span class="sd">    J. Snoek, O. Rippel, K. Swersky, R. Kiros, N. Satish,</span>
+<span class="sd">    N. Sundaram, M.~M.~A. Patwary, Prabhat, R.~P. Adams</span>
+<span class="sd">    Scalable Bayesian Optimization Using Deep Neural Networks</span>
+<span class="sd">    Proc. of ICML&#39;15</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    space: ``orion.algo.space.Space``</span>
+<span class="sd">        Optimisation space with priors for each dimension.</span>
+<span class="sd">    seed: None, int or sequence of int</span>
+<span class="sd">        Seed to sample initial points and candidates points.</span>
+<span class="sd">        Default: 0.</span>
+<span class="sd">    n_initial_points: int</span>
+<span class="sd">        Number of initial points randomly sampled. If new points</span>
+<span class="sd">        are requested and less than `n_initial_points` are observed,</span>
+<span class="sd">        the next points will also be sampled randomly instead of being</span>
+<span class="sd">        sampled from the parzen estimators.</span>
+<span class="sd">        Default: ``20``</span>
+<span class="sd">    maximizer: str</span>
+<span class="sd">        The optimizer for the acquisition function.</span>
+<span class="sd">        Can be one of ``{&quot;random&quot;, &quot;scipy&quot;, &quot;differential_evolution&quot;}``.</span>
+<span class="sd">        Defaults to &#39;random&#39;</span>
+<span class="sd">    acquisition_func: str</span>
+<span class="sd">        Name of the acquisition function. Can be one of ``[&#39;ei&#39;, &#39;log_ei&#39;, &#39;pi&#39;, &#39;lcb&#39;]``.</span>
+<span class="sd">    normalize_input: bool</span>
+<span class="sd">        Normalize the input based on the provided bounds (zero mean and unit standard deviation).</span>
+<span class="sd">        Defaults to ``True``.</span>
+<span class="sd">    normalize_output: bool</span>
+<span class="sd">        Normalize the output based on data (zero mean and unit standard deviation).</span>
+<span class="sd">        Defaults to ``False``.</span>
+<span class="sd">    chain_length : int</span>
+<span class="sd">        The chain length of the MCMC sampler</span>
+<span class="sd">    burnin_steps: int</span>
+<span class="sd">        The number of burnin steps before the sampling procedure starts</span>
+<span class="sd">    batch_size: int</span>
+<span class="sd">        Batch size for training the neural network</span>
+<span class="sd">    num_epochs: int</span>
+<span class="sd">        Number of epochs for training</span>
+<span class="sd">    learning_rate: float</span>
+<span class="sd">        Initial learning rate for Adam</span>
+<span class="sd">    adapt_epoch: int</span>
+<span class="sd">        Defines after how many epochs the learning rate will be decayed by a factor 10</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">space</span><span class="p">,</span>
+        <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">n_initial_points</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+        <span class="n">maximizer</span><span class="o">=</span><span class="s2">&quot;random&quot;</span><span class="p">,</span>
+        <span class="n">acquisition_func</span><span class="o">=</span><span class="s2">&quot;log_ei&quot;</span><span class="p">,</span>
+        <span class="n">normalize_input</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">normalize_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">chain_length</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>
+        <span class="n">burnin_steps</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">num_epochs</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">,</span>
+        <span class="n">adapt_epoch</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
+    <span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">RoBO_DNGO</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">space</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+            <span class="n">n_initial_points</span><span class="o">=</span><span class="n">n_initial_points</span><span class="p">,</span>
+            <span class="n">maximizer</span><span class="o">=</span><span class="n">maximizer</span><span class="p">,</span>
+            <span class="n">acquisition_func</span><span class="o">=</span><span class="n">acquisition_func</span><span class="p">,</span>
+            <span class="n">normalize_input</span><span class="o">=</span><span class="n">normalize_input</span><span class="p">,</span>
+            <span class="n">normalize_output</span><span class="o">=</span><span class="n">normalize_output</span><span class="p">,</span>
+            <span class="n">chain_length</span><span class="o">=</span><span class="n">chain_length</span><span class="p">,</span>
+            <span class="n">burnin_steps</span><span class="o">=</span><span class="n">burnin_steps</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+            <span class="n">learning_rate</span><span class="o">=</span><span class="n">learning_rate</span><span class="p">,</span>
+            <span class="n">adapt_epoch</span><span class="o">=</span><span class="n">adapt_epoch</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="n">build_bounds</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="p">)</span>
+        <span class="n">n_hypers</span> <span class="o">=</span> <span class="n">infer_n_hypers</span><span class="p">(</span><span class="n">build_kernel</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">OrionDNGOWrapper</span><span class="p">(</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_epochs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_epochs</span><span class="p">,</span>
+            <span class="n">learning_rate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span>
+            <span class="n">adapt_epoch</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">adapt_epoch</span><span class="p">,</span>
+            <span class="n">n_units_1</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+            <span class="n">n_units_2</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+            <span class="n">n_units_3</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+            <span class="n">beta</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+            <span class="n">prior</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">do_mcmc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">n_hypers</span><span class="o">=</span><span class="n">n_hypers</span><span class="p">,</span>
+            <span class="n">chain_length</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">chain_length</span><span class="p">,</span>
+            <span class="n">burnin_steps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">burnin_steps</span><span class="p">,</span>
+            <span class="n">normalize_input</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalize_input</span><span class="p">,</span>
+            <span class="n">normalize_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalize_output</span><span class="p">,</span>
+            <span class="n">rng</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">lower</span><span class="o">=</span><span class="n">lower</span><span class="p">,</span>
+            <span class="n">upper</span><span class="o">=</span><span class="n">upper</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">OrionDNGOWrapper</span><span class="p">(</span><span class="n">DNGO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for PyBNN&#39;s DNGO model</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    batch_size: int</span>
+<span class="sd">        Batch size for training the neural network</span>
+<span class="sd">    num_epochs: int</span>
+<span class="sd">        Number of epochs for training</span>
+<span class="sd">    learning_rate: float</span>
+<span class="sd">        Initial learning rate for Adam</span>
+<span class="sd">    adapt_epoch: int</span>
+<span class="sd">        Defines after how many epochs the learning rate will be decayed by a factor 10</span>
+<span class="sd">    n_units_1: int</span>
+<span class="sd">        Number of units in layer 1</span>
+<span class="sd">    n_units_2: int</span>
+<span class="sd">        Number of units in layer 2</span>
+<span class="sd">    n_units_3: int</span>
+<span class="sd">        Number of units in layer 3</span>
+<span class="sd">    alpha: float</span>
+<span class="sd">        Hyperparameter of the Bayesian linear regression</span>
+<span class="sd">    beta: float</span>
+<span class="sd">        Hyperparameter of the Bayesian linear regression</span>
+<span class="sd">    prior: Prior object</span>
+<span class="sd">        Prior for alpa and beta. If set to None the default prior is used</span>
+<span class="sd">    do_mcmc: bool</span>
+<span class="sd">        If set to true different values for alpha and beta are sampled via MCMC from the marginal</span>
+<span class="sd">        log likelihood. Otherwise the marginal log likehood is optimized with scipy fmin function.</span>
+<span class="sd">    n_hypers : int</span>
+<span class="sd">        Number of samples for alpha and beta</span>
+<span class="sd">    chain_length : int</span>
+<span class="sd">        The chain length of the MCMC sampler</span>
+<span class="sd">    burnin_steps: int</span>
+<span class="sd">        The number of burnin steps before the sampling procedure starts</span>
+<span class="sd">    normalize_output : bool</span>
+<span class="sd">        Zero mean unit variance normalization of the output values</span>
+<span class="sd">    normalize_input : bool</span>
+<span class="sd">        Zero mean unit variance normalization of the input values</span>
+<span class="sd">    rng: np.random.RandomState</span>
+<span class="sd">        Random number generator</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">OrionDNGOWrapper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">lower</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">upper</span>
+
+    <span class="k">def</span> <span class="nf">set_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restore the state of the optimizer&quot;&quot;&quot;</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">set_rng_state</span><span class="p">(</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;torch&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;rng&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;prior_rng&quot;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the current state of the optimizer so that it can be restored&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;torch&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">(),</span>
+            <span class="s2">&quot;rng&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">get_state</span><span class="p">(),</span>
+            <span class="s2">&quot;prior_rng&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">get_state</span><span class="p">(),</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">seed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Seed all internal RNGs&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rng</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+        <span class="n">rand_nums</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">10e8</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">pytorch_seed</span> <span class="o">=</span> <span class="n">rand_nums</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">cudnn</span><span class="o">.</span><span class="n">benchmark</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">manual_seed_all</span><span class="p">(</span><span class="n">pytorch_seed</span><span class="p">)</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">cudnn</span><span class="o">.</span><span class="n">deterministic</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">pytorch_seed</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">rand_nums</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Epistímio.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

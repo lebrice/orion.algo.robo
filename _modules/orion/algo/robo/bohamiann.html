@@ -1,0 +1,494 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>orion.algo.robo.bohamiann &mdash; orion.algo.robo v0.1.0.post4 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> orion.algo.robo
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                v0.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Welcome</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="index.html#http://">Introduction</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Algorithms</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html">RoBO Gaussian Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-gaussian-process-with-mcmc">RoBO Gaussian Process with MCMC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-random-forest">RoBO Random Forest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-dngo">RoBO DNGO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../usage.html#robo-bohamiann">RoBO BOHAMIANN</a></li>
+</ul>
+<p class="caption"><span class="caption-text">External links</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable">Oríon documentation</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://orion.readthedocs.io/en/stable/user/algorithms.html">Other algorithms</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">orion.algo.robo</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>orion.algo.robo.bohamiann</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for orion.algo.robo.bohamiann</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Wrapper for RoBO with BOHAMIANN</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">pybnn.bohamiann</span> <span class="kn">import</span> <span class="n">Bohamiann</span>
+<span class="kn">from</span> <span class="nn">robo.models.base_model</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+<span class="kn">from</span> <span class="nn">robo.models.wrapper_bohamiann</span> <span class="kn">import</span> <span class="n">get_default_network</span>
+
+<span class="kn">from</span> <span class="nn">orion.algo.robo.base</span> <span class="kn">import</span> <span class="n">RoBO</span><span class="p">,</span> <span class="n">build_bounds</span>
+
+
+<div class="viewcode-block" id="RoBO_BOHAMIANN"><a class="viewcode-back" href="../../../../usage.html#orion.algo.robo.bohamiann.RoBO_BOHAMIANN">[docs]</a><span class="k">class</span> <span class="nc">RoBO_BOHAMIANN</span><span class="p">(</span><span class="n">RoBO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for RoBO with BOHAMIANN</span>
+
+<span class="sd">    For more information on the algorithm, see original paper at</span>
+<span class="sd">    https://papers.nips.cc/paper/2016/hash/a96d3afec184766bfeca7a9f989fc7e7-Abstract.html.</span>
+
+<span class="sd">    Springenberg, Jost Tobias, et al.</span>
+<span class="sd">    &quot;Bayesian optimization with robust Bayesian neural networks.&quot;</span>
+<span class="sd">    Advances in neural information processing systems 29 (2016): 4134-4142.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    space: ``orion.algo.space.Space``</span>
+<span class="sd">        Optimisation space with priors for each dimension.</span>
+<span class="sd">    seed: None, int or sequence of int</span>
+<span class="sd">        Seed to sample initial points and candidates points.</span>
+<span class="sd">        Default: 0.</span>
+<span class="sd">    n_initial_points: int</span>
+<span class="sd">        Number of initial points randomly sampled. If new points</span>
+<span class="sd">        are requested and less than `n_initial_points` are observed,</span>
+<span class="sd">        the next points will also be sampled randomly instead of being</span>
+<span class="sd">        sampled from the parzen estimators.</span>
+<span class="sd">        Default: ``20``</span>
+<span class="sd">    maximizer: str</span>
+<span class="sd">        The optimizer for the acquisition function.</span>
+<span class="sd">        Can be one of ``{&quot;random&quot;, &quot;scipy&quot;, &quot;differential_evolution&quot;}``.</span>
+<span class="sd">        Defaults to &#39;random&#39;</span>
+<span class="sd">    acquisition_func: str</span>
+<span class="sd">        Name of the acquisition function. Can be one of ``[&#39;ei&#39;, &#39;log_ei&#39;, &#39;pi&#39;, &#39;lcb&#39;]``.</span>
+<span class="sd">    normalize_input: bool</span>
+<span class="sd">        Normalize the input based on the provided bounds (zero mean and unit standard deviation).</span>
+<span class="sd">        Defaults to ``True``.</span>
+<span class="sd">    normalize_output: bool</span>
+<span class="sd">        Normalize the output based on data (zero mean and unit standard deviation).</span>
+<span class="sd">        Defaults to ``False``.</span>
+<span class="sd">    burnin_steps: int or None.</span>
+<span class="sd">        The number of burnin steps before the sampling procedure starts.</span>
+<span class="sd">        If ``None``, ``burnin_steps = n_dims * 100`` where ``n_dims`` is the dimensionality</span>
+<span class="sd">        of the search space. Defaults to ``None``.</span>
+<span class="sd">    sampling_method: str</span>
+<span class="sd">        Can be one of ``[&#39;adaptive_sghmc&#39;, &#39;sgld&#39;, &#39;preconditioned_sgld&#39;, &#39;sghmc&#39;]``.</span>
+<span class="sd">        Defaults to ``&quot;adaptive_sghmc&quot;``. See PyBNN samplers&#39;</span>
+<span class="sd">        `code &lt;https://github.com/automl/pybnn/tree/master/pybnn/sampler&gt;`_ for more information.</span>
+<span class="sd">    use_double_precision: bool</span>
+<span class="sd">        Use double precision if using ``bohamiann``. Note that it can run faster on GPU</span>
+<span class="sd">        if using single precision. Defaults to ``True``.</span>
+<span class="sd">    num_steps: int or None</span>
+<span class="sd">        Number of sampling steps to perform after burn-in is finished.</span>
+<span class="sd">        In total, ``num_steps // keep_every`` network weights will be sampled.</span>
+<span class="sd">        If ``None``, ``num_steps = n_dims * 100 + 10000`` where ``n_dims`` is the</span>
+<span class="sd">        dimensionality of the search space.</span>
+<span class="sd">    keep_every: int</span>
+<span class="sd">        Number of sampling steps (after burn-in) to perform before keeping a sample.</span>
+<span class="sd">        In total, ``num_steps // keep_every`` network weights will be sampled.</span>
+<span class="sd">    learning_rate: float</span>
+<span class="sd">        Learning rate. Defaults to 1e-2.</span>
+<span class="sd">    batch_size: int</span>
+<span class="sd">        Batch size for training the neural network. Defaults to 20.</span>
+<span class="sd">    epsilon: float</span>
+<span class="sd">        epsilon for numerical stability. Defaults to 1e-10.</span>
+<span class="sd">    mdecay: float</span>
+<span class="sd">        momemtum decay. Defaults to 0.05.</span>
+<span class="sd">    verbose: bool</span>
+<span class="sd">        Write progress logs in stdout. Defaults to ``False``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">space</span><span class="p">,</span>
+        <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">n_initial_points</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+        <span class="n">maximizer</span><span class="o">=</span><span class="s2">&quot;random&quot;</span><span class="p">,</span>
+        <span class="n">acquisition_func</span><span class="o">=</span><span class="s2">&quot;log_ei&quot;</span><span class="p">,</span>
+        <span class="n">normalize_input</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">normalize_output</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">burnin_steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">sampling_method</span><span class="o">=</span><span class="s2">&quot;adaptive_sghmc&quot;</span><span class="p">,</span>
+        <span class="n">use_double_precision</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">num_steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">keep_every</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+        <span class="n">epsilon</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">,</span>
+        <span class="n">mdecay</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">RoBO_BOHAMIANN</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">space</span><span class="p">,</span>
+            <span class="n">maximizer</span><span class="o">=</span><span class="n">maximizer</span><span class="p">,</span>
+            <span class="n">acquisition_func</span><span class="o">=</span><span class="n">acquisition_func</span><span class="p">,</span>
+            <span class="n">normalize_input</span><span class="o">=</span><span class="n">normalize_input</span><span class="p">,</span>
+            <span class="n">normalize_output</span><span class="o">=</span><span class="n">normalize_output</span><span class="p">,</span>
+            <span class="n">burnin_steps</span><span class="o">=</span><span class="n">burnin_steps</span><span class="p">,</span>
+            <span class="n">sampling_method</span><span class="o">=</span><span class="n">sampling_method</span><span class="p">,</span>
+            <span class="n">use_double_precision</span><span class="o">=</span><span class="n">use_double_precision</span><span class="p">,</span>
+            <span class="n">num_steps</span><span class="o">=</span><span class="n">num_steps</span><span class="p">,</span>
+            <span class="n">keep_every</span><span class="o">=</span><span class="n">keep_every</span><span class="p">,</span>
+            <span class="n">learning_rate</span><span class="o">=</span><span class="n">learning_rate</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">epsilon</span><span class="o">=</span><span class="n">epsilon</span><span class="p">,</span>
+            <span class="n">mdecay</span><span class="o">=</span><span class="n">mdecay</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="n">n_initial_points</span><span class="o">=</span><span class="n">n_initial_points</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="n">build_bounds</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">OrionBohamiannWrapper</span><span class="p">(</span>
+            <span class="n">normalize_input</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalize_input</span><span class="p">,</span>
+            <span class="n">normalize_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">normalize_output</span><span class="p">,</span>
+            <span class="n">burnin_steps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">burnin_steps</span><span class="p">,</span>
+            <span class="n">sampling_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sampling_method</span><span class="p">,</span>
+            <span class="n">use_double_precision</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_double_precision</span><span class="p">,</span>
+            <span class="n">num_steps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_steps</span><span class="p">,</span>
+            <span class="n">keep_every</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keep_every</span><span class="p">,</span>
+            <span class="n">learning_rate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">epsilon</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span><span class="p">,</span>
+            <span class="n">mdecay</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mdecay</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="n">lower</span><span class="o">=</span><span class="n">lower</span><span class="p">,</span>
+            <span class="n">upper</span><span class="o">=</span><span class="n">upper</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">OrionBohamiannWrapper</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for PyBNN&#39;s BOHAMIANN model</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    normalize_input: bool</span>
+<span class="sd">        Normalize the input based on the provided bounds (zero mean and unit standard deviation).</span>
+<span class="sd">        Defaults to ``True``.</span>
+<span class="sd">    normalize_output: bool</span>
+<span class="sd">        Normalize the output based on data (zero mean and unit standard deviation).</span>
+<span class="sd">        Defaults to ``False``.</span>
+<span class="sd">    burnin_steps: int or None.</span>
+<span class="sd">        The number of burnin steps before the sampling procedure starts.</span>
+<span class="sd">        If ``None``, ``burnin_steps = n_dims * 100`` where ``n_dims`` is the dimensionality</span>
+<span class="sd">        of the search space. Defaults to ``None``.</span>
+<span class="sd">    sampling_method: str</span>
+<span class="sd">        Can be one of ``[&#39;adaptive_sghmc&#39;, &#39;sgld&#39;, &#39;preconditioned_sgld&#39;, &#39;sghmc&#39;]``.</span>
+<span class="sd">        Defaults to ``&quot;adaptive_sghmc&quot;``. See PyBNN samplers&#39;</span>
+<span class="sd">        `code &lt;https://github.com/automl/pybnn/tree/master/pybnn/sampler&gt;`_ for more information.</span>
+<span class="sd">    use_double_precision: bool</span>
+<span class="sd">        Use double precision if using ``bohamiann``. Note that it can run faster on GPU</span>
+<span class="sd">        if using single precision. Defaults to ``True``.</span>
+<span class="sd">    num_steps: int or None</span>
+<span class="sd">        Number of sampling steps to perform after burn-in is finished.</span>
+<span class="sd">        In total, ``num_steps // keep_every`` network weights will be sampled.</span>
+<span class="sd">        If ``None``, ``num_steps = n_dims * 100 + 10000`` where ``n_dims`` is the</span>
+<span class="sd">        dimensionality of the search space.</span>
+<span class="sd">    keep_every: int</span>
+<span class="sd">        Number of sampling steps (after burn-in) to perform before keeping a sample.</span>
+<span class="sd">        In total, ``num_steps // keep_every`` network weights will be sampled.</span>
+<span class="sd">    learning_rate: float</span>
+<span class="sd">        Learning rate. Defaults to 1e-2.</span>
+<span class="sd">    batch_size: int</span>
+<span class="sd">        Batch size for training the neural network. Defaults to 20.</span>
+<span class="sd">    epsilon: float</span>
+<span class="sd">        epsilon for numerical stability. Defaults to 1e-10.</span>
+<span class="sd">    mdecay: float</span>
+<span class="sd">        momemtum decay. Defaults to 0.05.</span>
+<span class="sd">    verbose: bool</span>
+<span class="sd">        Write progress logs in stdout. Defaults to ``False``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">lower</span><span class="p">,</span>
+        <span class="n">upper</span><span class="p">,</span>
+        <span class="n">sampling_method</span><span class="o">=</span><span class="s2">&quot;adaptive_sghmc&quot;</span><span class="p">,</span>
+        <span class="n">use_double_precision</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">num_steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">keep_every</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+        <span class="n">burnin_steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+        <span class="n">epsilon</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">,</span>
+        <span class="n">mdecay</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_steps</span> <span class="o">=</span> <span class="n">num_steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keep_every</span> <span class="o">=</span> <span class="n">keep_every</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">burnin_steps</span> <span class="o">=</span> <span class="n">burnin_steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="n">learning_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span> <span class="o">=</span> <span class="n">epsilon</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mdecay</span> <span class="o">=</span> <span class="n">mdecay</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bnn</span> <span class="o">=</span> <span class="n">Bohamiann</span><span class="p">(</span>
+            <span class="n">get_network</span><span class="o">=</span><span class="n">get_default_network</span><span class="p">,</span>
+            <span class="n">sampling_method</span><span class="o">=</span><span class="n">sampling_method</span><span class="p">,</span>
+            <span class="n">use_double_precision</span><span class="o">=</span><span class="n">use_double_precision</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">burnin_steps</span> <span class="o">=</span> <span class="n">burnin_steps</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lower</span> <span class="o">=</span> <span class="n">lower</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upper</span> <span class="o">=</span> <span class="n">upper</span>
+
+    <span class="c1"># pylint:disable=no-self-use</span>
+    <span class="k">def</span> <span class="nf">set_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restore the state of the optimizer&quot;&quot;&quot;</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">set_rng_state</span><span class="p">(</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;torch&quot;</span><span class="p">])</span>
+
+    <span class="c1"># pylint:disable=no-self-use</span>
+    <span class="k">def</span> <span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the current state of the optimizer so that it can be restored&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;torch&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">get_rng_state</span><span class="p">()}</span>
+
+    <span class="k">def</span> <span class="nf">seed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Seed all internal RNGs&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">cudnn</span><span class="o">.</span><span class="n">benchmark</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">manual_seed_all</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">backends</span><span class="o">.</span><span class="n">cudnn</span><span class="o">.</span><span class="n">deterministic</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets num_steps and burnin_steps before training with parent&#39;s train()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">X</span> <span class="o">=</span> <span class="n">X</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">y</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_steps</span><span class="p">:</span>
+            <span class="n">num_steps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_steps</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">num_steps</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">+</span> <span class="mi">10000</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">burnin_steps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">burnin_steps</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">burnin_steps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">burnin_steps</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bnn</span><span class="o">.</span><span class="n">train</span><span class="p">(</span>
+            <span class="n">X</span><span class="p">,</span>
+            <span class="n">y</span><span class="p">,</span>
+            <span class="n">num_steps</span><span class="o">=</span><span class="n">num_steps</span><span class="p">,</span>
+            <span class="n">keep_every</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keep_every</span><span class="p">,</span>
+            <span class="n">num_burn_in_steps</span><span class="o">=</span><span class="n">burnin_steps</span><span class="p">,</span>
+            <span class="n">lr</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">epsilon</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span><span class="p">,</span>
+            <span class="n">mdecay</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mdecay</span><span class="p">,</span>
+            <span class="n">continue_training</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_test</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Predict using bnn.predict()&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bnn</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Epistímio.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
