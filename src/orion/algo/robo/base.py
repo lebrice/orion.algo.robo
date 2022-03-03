@@ -220,7 +220,7 @@ class RoBO(BaseAlgorithm, ABC):
     ):
 
         self.model: Optional[BaseModel] = None
-        self.robo = None
+        self.robo: Optional[BayesianOptimization] = None
         self._bo_duplicates: list[tuple[str, tuple[Trial, Trial.Result]]] = []
 
         super().__init__(
@@ -279,27 +279,23 @@ class RoBO(BaseAlgorithm, ABC):
         self.seed_rng(self.seed)
 
     @property
-    def X(self):
-        """Matrix containing trial points"""
-        ref_point = self.space.sample(1, seed=0)[0]
-        points = list(self._trials_info.values()) + self._bo_duplicates
-        points = list(filter(lambda point: point[1] is not None, points))
-        X = numpy.zeros((len(points), len(ref_point)))
-        for i, (point, _result) in enumerate(points):
-            X[i] = point
-
-        return X
-
-    @property
-    def y(self):
-        """Vector containing trial results"""
-        points = list(self._trials_info.values()) + self._bo_duplicates
-        points = list(filter(lambda point: point[1] is not None, points))
-        y = numpy.zeros(len(points))
-        for i, (_point, result) in enumerate(points):
-            y[i] = result["objective"]
-
-        return y
+    def XY(self) -> np.ndarray:
+        """ Matrix containing trial points and their results. """
+        trials_and_results: list[tuple[Trial, dict]] = list(
+            self._trials_info.values()
+        ) + self._bo_duplicates
+        # Keep only the trials that have a result.
+        trials_with_a_result = [
+            (trial, result)
+            for trial, result in trials_and_results
+            if result is not None
+        ]
+        x: list[tuple] = []
+        y: list[float] = []
+        for trial, result in trials_with_a_result:
+            x.append(trial_to_tuple(trial, space=self.space))
+            y.append(result["objective"])
+        return np.array(x), np.array(y)
 
     def seed_rng(self, seed):
         """Seed the state of the random number generator.
@@ -355,7 +351,7 @@ class RoBO(BaseAlgorithm, ABC):
         self.model.set_state(state_dict["model"])
         self._bo_duplicates = state_dict["bo_duplicates"]
 
-    def suggest(self, num: int | None = None) -> list[Trial] | None:
+    def suggest(self, num: int) -> list[Trial] | None:
         """Suggest a `num`ber of new sets of parameters.
 
         Perform a step towards negative gradient and suggest that point.
@@ -378,27 +374,30 @@ class RoBO(BaseAlgorithm, ABC):
 
             if not candidates:
                 break
-
+        assert all(isinstance(sample, Trial) for sample in samples), samples
         return samples
+        return [tuple_to_trial(sample, self.space) for sample in samples]
 
-    def _suggest(self, num, function):
-        points = []
-
+    def _suggest(
+        self, num: int, function: Callable[[int], Iterable[Trial]]
+    ) -> list[Trial]:
+        trials: list[Trial] = []
         attempts = 0
         max_attempts = 100
-        while len(points) < num and attempts < max_attempts:
-            for candidate in function(num - len(points)):
+        while len(trials) < num and attempts < max_attempts:
+            for candidate in function(num - len(trials)):
                 if not self.has_suggested(candidate):
                     self.register(candidate)
-                    points.append(candidate)
+                    trials.append(candidate)
 
                 if self.is_done:
-                    return points
+                    return trials
 
             attempts += 1
-            print(attempts)
 
-        return points
+            # print(attempts)
+
+        return trials
 
     def _suggest_random(self, num: int) -> list[Trial]:
         def sample(num: int) -> list[Trial]:
@@ -412,24 +411,26 @@ class RoBO(BaseAlgorithm, ABC):
         # pylint: disable = unused-argument
         def suggest_bo(num: int) -> list[Trial]:
             # pylint: disable = protected-access
-            point = list(self.robo.choose_next(self.X, self.y))
-
+            assert self.robo is not None
+            X, y = self.XY
+            point = list(self.robo.choose_next(X, y))
+            trial = tuple_to_trial(point, self.space)
             # If already suggested, give corresponding result to BO to sample another point
-            if self.has_suggested(point):
-                result = self._trials_info[self.get_id(point)][1]
+            if self.has_suggested(trial):
+                result = self._trials_info[self.get_id(trial)][1]
                 if result is None:
                     results = []
                     for _, other_result in self._trials_info.values():
                         if other_result is not None:
                             results.append(other_result["objective"])
-                    result = {"objective": numpy.array(results).mean()}
+                    result = Trial.Result(objective=numpy.array(results).mean())
 
-                self._bo_duplicates.append((point, result))
+                self._bo_duplicates.append((trial, result))
 
                 # self.optimizer.tell([point], [result])
                 return []
 
-            return [point]
+            return [trial]
 
         return self._suggest(num, suggest_bo)
 
