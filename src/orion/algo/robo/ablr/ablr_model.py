@@ -229,7 +229,15 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
                     def closure():
                         return self(self.X, self.y)[0]
 
-                    self.optimizer.step(closure=closure)
+                    try:
+                        self.optimizer.step(closure=closure)
+                    except RuntimeError as err:
+                        warnings.warn(
+                            RuntimeWarning(
+                                f"Ending training early because of error: {err}"
+                            )
+                        )
+                        return
 
     def get_incumbent(self):
         x, y = super().get_incumbent()
