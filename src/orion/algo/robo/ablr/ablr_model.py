@@ -4,20 +4,23 @@
     https://papers.nips.cc/paper/7917-scalable-hyperparameter-transfer-learning)
 
 """
-from typing import Callable, Dict, Optional, Tuple, Union, Type, Any
+import warnings
 from dataclasses import dataclass
+from logging import getLogger as get_logger
+from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+
 import numpy as np
 import torch
 import tqdm
+from orion.algo.space import Space
 from pybnn.base_model import BaseModel
 from robo.models.base_model import BaseModel as BaseModel_
 from torch import Tensor, nn
 from torch.linalg import norm
 from torch.utils.data import DataLoader, TensorDataset
-from logging import getLogger as get_logger
-from orion.algo.robo.ablr.normal import Normal
+
 from orion.algo.robo.ablr.encoders import Encoder, NeuralNetEncoder
-from orion.algo.space import Space
+from orion.algo.robo.ablr.normal import Normal
 
 logger = get_logger(__name__)
 
@@ -397,7 +400,7 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
 
             negative_log_marginal_likelihood = (
                 -n / 2 * torch.log(self.beta)
-                + self.beta / 2 * ((y_t**2).sum() - r_t * (e_t**2).sum())
+                + self.beta / 2 * ((y_t ** 2).sum() - r_t * (e_t ** 2).sum())
                 + l_t.diag().log().sum()
             )
 
@@ -467,13 +470,13 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
 
         def predict_variance(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
-            y_t_norm = (y_t**2).sum()
+            y_t_norm = (y_t ** 2).sum()
             second_term = torch.chain_matmul(
                 E_t_inv,
                 phi_t,
                 phi_t_star.T,
             )
-            variance = (1 / self.alpha) * (y_t_norm - r_t * (second_term**2).sum(0))
+            variance = (1 / self.alpha) * (y_t_norm - r_t * (second_term ** 2).sum(0))
             if (variance < 0).any():
                 min_variance = variance.min()
                 logger.critical(

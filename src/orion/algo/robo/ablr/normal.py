@@ -4,11 +4,12 @@ distributions with constants of other distributions.
 Basically just having fun here.
 """
 
+from typing import Any, Union
+
+import torch
+from torch import Tensor
 from torch.distributions import Distribution
 from torch.distributions import Normal as NormalBase
-from typing import Union, Any
-from torch import Tensor
-import torch
 
 
 class Normal(NormalBase):

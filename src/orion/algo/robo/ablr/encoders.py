@@ -1,15 +1,16 @@
 """ Module for the 'feature maps' from the paper. """
 from abc import ABC, abstractmethod
 from typing import Dict
-import torch
+
 import numpy as np
-from torch import nn, Tensor
-from torch.nn.utils import parameters_to_vector
+import torch
+from torch import Tensor, nn
 from torch.nn import functional as F
+from torch.nn.utils import parameters_to_vector
 
 
 class Encoder(nn.Module, ABC):
-    """ Base class for an Encoder that maps samples from a given input space
+    """Base class for an Encoder that maps samples from a given input space
     to vectors of length `out_features`.
     """
 
@@ -49,17 +50,17 @@ class NeuralNetEncoder(Encoder):
 
 
 class AdaptiveEncoder(Encoder):
-    """ Encoder with the same structure as the neural net encoder above, but
+    """Encoder with the same structure as the neural net encoder above, but
     where the weights of the first layer are learned and shared accross tasks on
     a per-hyper-parameter basis, using the Registry.
-    
+
     For example, say that the registry currently contains information about the
     "learning_rate" and "momentum" hyper-parameters, and that we want to get an
     Encoder for a new Task with the following input space:
     ```
     {"lr": "log_uniform(1e-9, 1e-2)", "dropout_prob": "uniform(0., 0.8)"}
     ```
-    
+
     This Encoder's first layer would have its weight matrix's first column
     loaded from the registry, such that we can already "encode" a given value of
     learning rate into a vector. The second column of the weight matrix would be
@@ -113,9 +114,9 @@ class AdaptiveEncoder(Encoder):
 
 class RandomFourierBasisEncoder(Encoder):
     """Random Fourier Basis Encoder, a.k.a. "Random Kitchen Sink encoder".
-    
+
     Used as an alternative to the neural network encoder. Briefly described in
-    section 4.1 of the ABLR paper. 
+    section 4.1 of the ABLR paper.
     """
 
     def __init__(

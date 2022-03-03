@@ -5,15 +5,14 @@
 
 """
 
-from typing import Dict, Tuple, List
 from logging import getLogger
+from typing import Dict, List, Tuple
 
-import torch
-from typing import List, Dict
 import numpy as np
+import torch
 
-from orion.algo.robo.base import RoBO, build_bounds
 from orion.algo.robo.ablr.ablr_model import ABLR
+from orion.algo.robo.base import RoBO, build_bounds
 
 logger = getLogger(__file__)
 

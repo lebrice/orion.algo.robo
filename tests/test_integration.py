@@ -3,16 +3,14 @@
 """Perform integration tests for `orion.algo.robo`."""
 import copy
 import itertools
-
-from orion.testing.algo import BaseAlgoTests
-
-from orion.algo.robo.ablr.ablr_model import ABLR
-import copy
 from typing import ClassVar, Type
-from orion.algo.robo.ablr import RoBO_ABLR, RoBO
+
 from orion.core.utils.format_trials import tuple_to_trial
 from orion.core.worker.trial import Trial
+from orion.testing.algo import BaseAlgoTests
 
+from orion.algo.robo.ablr import RoBO, RoBO_ABLR
+from orion.algo.robo.ablr.ablr_model import ABLR
 
 N_INIT = 10
 

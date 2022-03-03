@@ -14,7 +14,6 @@ from orion.algo.base import BaseAlgorithm
 from orion.algo.space import Space
 from orion.core.utils.format_trials import trial_to_tuple, tuple_to_trial
 from orion.core.worker.trial import Trial
-
 from robo.acquisition_functions.base_acquisition import BaseAcquisitionFunction
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
@@ -124,7 +123,9 @@ def build_acquisition_func(acquisition_func: AcquisitionFnName, model: BaseModel
 
 
 def build_optimizer(
-    model, maximizer: MaximizerName, acquisition_func: BaseAcquisitionFunction,
+    model: BaseModel,
+    maximizer: MaximizerName,
+    acquisition_func: BaseAcquisitionFunction,
 ) -> BayesianOptimization:
     """
     General interface for Bayesian optimization for global black box

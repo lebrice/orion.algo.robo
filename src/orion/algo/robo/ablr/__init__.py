@@ -1,2 +1,2 @@
-from .ablr import RoBO_ABLR, RoBO
+from .ablr import RoBO, RoBO_ABLR
 from .ablr_model import ABLR
