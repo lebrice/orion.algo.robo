@@ -2,19 +2,17 @@
 # -*- coding: utf-8 -*-
 """Perform integration tests for `orion.algo.robo`."""
 import copy
-import functools
 import itertools
-import os
 
-import numpy
-import orion.core.cli
-import pytest
 from orion.testing.algo import BaseAlgoTests
 
 from orion.algo.robo.ablr.ablr_model import ABLR
 import copy
 from typing import ClassVar, Type
 from orion.algo.robo.ablr import RoBO_ABLR, RoBO
+from orion.core.utils.format_trials import tuple_to_trial
+from orion.core.worker.trial import Trial
+
 
 N_INIT = 10
 
@@ -29,38 +27,38 @@ class BaseRoBOTests(BaseAlgoTests):
     def test_suggest_init(self, mocker):
         algo = self.create_algo()
         spy = self.spy_phase(mocker, 0, algo, "space.sample")
-        points = algo.suggest(1000)
-        assert len(points) == N_INIT
+        trials = algo.suggest(1000)
+        assert len(trials) == N_INIT
 
     def test_suggest_init_missing(self, mocker):
         algo = self.create_algo()
         missing = 3
         spy = self.spy_phase(mocker, N_INIT - missing, algo, "space.sample")
-        points = algo.suggest(1000)
-        assert len(points) == missing
+        trials = algo.suggest(1000)
+        assert len(trials) == missing
 
     def test_suggest_init_overflow(self, mocker):
         algo = self.create_algo()
         spy = self.spy_phase(mocker, N_INIT - 1, algo, "space.sample")
         # Now reaching N_INIT
-        points = algo.suggest(1000)
-        assert len(points) == 1
+        trials = algo.suggest(1000)
+        assert len(trials) == 1
         # Verify point was sampled randomly, not using BO
         assert spy.call_count == 1
         # Overflow above N_INIT
-        points = algo.suggest(1000)
-        assert len(points) == 1
+        trials = algo.suggest(1000)
+        assert len(trials) == 1
         # Verify point was sampled randomly, not using BO
         assert spy.call_count == 2
 
     def test_suggest_n(self, mocker, num, attr):
         algo = self.create_algo()
         spy = self.spy_phase(mocker, num, algo, attr)
-        points = algo.suggest(5)
+        trials = algo.suggest(5)
         if num == 0:
-            assert len(points) == 5
+            assert len(trials) == 5
         else:
-            assert len(points) == 1
+            assert len(trials) == 1
 
     def test_is_done_cardinality(self):
         # TODO: Support correctly loguniform(discrete=True)
@@ -76,10 +74,13 @@ class BaseRoBOTests(BaseAlgoTests):
         assert space.cardinality == 5 * 3 * 6
 
         algo = self.create_algo(space=space)
+        i = 0
         for i, (x, y, z) in enumerate(itertools.product(range(5), "abc", range(1, 7))):
             assert not algo.is_done
             n = len(algo.algorithm._trials_info)
-            algo.observe([[x, y, z]], [dict(objective=i)])
+            trial = tuple_to_trial((x, y, z), space=algo.space)
+            trial.results = [Trial.Result(type="objective", value=i)]
+            algo.observe([trial])
             assert len(algo.algorithm._trials_info) == n + 1
 
         assert i + 1 == space.cardinality
