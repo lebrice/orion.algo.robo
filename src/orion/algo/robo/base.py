@@ -2,13 +2,20 @@
 Base class for RoBO algorithms.
 """
 from __future__ import annotations
-from abc import ABC
+
+from abc import ABC, abstractmethod
 from typing import Any, Callable, Iterable, Literal, Optional
-import typing
+
 import george
 import numpy
+import numpy as np
+from george.kernels import Kernel
 from orion.algo.base import BaseAlgorithm
 from orion.algo.space import Space
+from orion.core.utils.format_trials import trial_to_tuple, tuple_to_trial
+from orion.core.worker.trial import Trial
+
+from robo.acquisition_functions.base_acquisition import BaseAcquisitionFunction
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
 from robo.acquisition_functions.log_ei import LogEI
@@ -17,16 +24,9 @@ from robo.initial_design import init_latin_hypercube_sampling
 from robo.maximizers.differential_evolution import DifferentialEvolution
 from robo.maximizers.random_sampling import RandomSampling
 from robo.maximizers.scipy_optimizer import SciPyOptimizer
+from robo.models.base_model import BaseModel
 from robo.priors.default_priors import DefaultPrior
 from robo.solver.bayesian_optimization import BayesianOptimization
-import numpy as np
-from george.kernels import Kernel
-from robo.models.base_model import BaseModel
-from robo.acquisition_functions.base_acquisition import BaseAcquisitionFunction
-from abc import abstractmethod
-from orion.core.worker.trial import Trial
-from orion.core.utils.format_trials import tuple_to_trial, trial_to_tuple
-
 
 AcquisitionFnName = Literal["ei", "log_ei", "pi", "lcb"]
 MaximizerName = Literal["random", "scipy", "differential_evolution"]
@@ -222,7 +222,7 @@ class RoBO(BaseAlgorithm, ABC):
         self.model: Optional[BaseModel] = None
         self.robo: Optional[BayesianOptimization] = None
         self._bo_duplicates: list[tuple[str, tuple[Trial, Trial.Result]]] = []
-
+        self._space: Space
         super().__init__(
             space,
             n_initial_points=n_initial_points,
@@ -268,7 +268,7 @@ class RoBO(BaseAlgorithm, ABC):
         return build_acquisition_func(self.acquisition_func, self.model)
 
     def _initialize(self) -> None:
-        """Initialize the optimizer once the space is transformed"""
+        """Initialize the model and optimizer once the space is transformed"""
         self._initialize_model()
         self.robo = build_optimizer(
             self.model,
@@ -279,11 +279,11 @@ class RoBO(BaseAlgorithm, ABC):
         self.seed_rng(self.seed)
 
     @property
-    def XY(self) -> np.ndarray:
+    def XY(self) -> tuple[np.ndarray, np.ndarray]:
         """ Matrix containing trial points and their results. """
-        trials_and_results: list[tuple[Trial, dict]] = list(
-            self._trials_info.values()
-        ) + self._bo_duplicates
+        trials_and_results: list[tuple[Trial, dict]] = (
+            list(self._trials_info.values()) + self._bo_duplicates
+        )
         # Keep only the trials that have a result.
         trials_with_a_result = [
             (trial, result)
@@ -297,7 +297,7 @@ class RoBO(BaseAlgorithm, ABC):
             y.append(result["objective"])
         return np.array(x), np.array(y)
 
-    def seed_rng(self, seed):
+    def seed_rng(self, seed: int) -> None:
         """Seed the state of the random number generator.
 
         Parameters
@@ -308,7 +308,7 @@ class RoBO(BaseAlgorithm, ABC):
         """
         self.rng = numpy.random.RandomState(seed)
 
-        rand_nums = self.rng.randint(1, 10e8, 4)
+        rand_nums = self.rng.randint(1, int(10e8), 4)
 
         if self.robo:
             self.robo.rng = numpy.random.RandomState(rand_nums[0])
