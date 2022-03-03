@@ -12,6 +12,13 @@ repo_root = os.path.dirname(os.path.abspath(__file__))
 
 tests_require = ["pytest>=3.0.0"]
 
+extras_require = {
+    "test": tests_require,
+    # "george": [
+    #     # "george @ git+https://github.com/lebrice/george.git@orion",
+    # ],
+}
+
 setup_args = dict(
     name="orion.algo.robo",
     version=versioneer.get_version(),
@@ -19,25 +26,36 @@ setup_args = dict(
     description="TODO",
     long_description=open(os.path.join(repo_root, "README.rst")).read(),
     license="BSD-3-Clause",
-    author=u"Epistímio",
+    author="Epistímio",
     author_email="xavier.bouthillier@umontreal.ca",
     url="https://github.com/Epistimio/orion.algo.robo",
     packages=["orion.algo.robo"],
     package_dir={"": "src"},
     include_package_data=True,
     entry_points={
-        "OptimizationAlgorithm": [
+        "BaseAlgorithm": [
             "robo_gp = orion.algo.robo.gp:RoBO_GP",
             "robo_gp_mcmc = orion.algo.robo.gp:RoBO_GP_MCMC",
             "robo_randomforest = orion.algo.robo.randomforest:RoBO_RandomForest",
             "robo_dngo = orion.algo.robo.dngo:RoBO_DNGO",
-            "robo_bohamiann= orion.algo.robo.bohamiann:RoBO_BOHAMIANN",
+            "robo_bohamiann = orion.algo.robo.bohamiann:RoBO_BOHAMIANN",
+            # "robo_ablr = orion.algo.robo.ablr.ablr:RoBO_ABLR",
         ],
     },
-    install_requires=["orion>=0.1.11", "numpy", "torch>=1.2.0"],
+    install_requires=[
+        "orion>=0.1.11",
+        "numpy",
+        "torch>=1.2.0",
+        "pyyaml<6.0.0",  # NOTE: This is because of George usign yaml.load without passing a Loader
+        "pybind11",
+        "Jinja2",
+        "tqdm",
+        "pybnn @ git+https://github.com/automl/pybnn.git",
+        "robo @ git+https://github.com/automl/RoBO.git",
+    ],
     tests_require=tests_require,
     setup_requires=["setuptools", "pytest-runner>=2.0,<3dev"],
-    extras_require=dict(test=tests_require),
+    extras_require=extras_require,
     # "Zipped eggs don't play nicely with namespace packaging"
     # from https://github.com/pypa/sample-namespace-packages
     zip_safe=False,
