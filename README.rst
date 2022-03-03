@@ -40,25 +40,25 @@ Installation
 The RoBO wrapper is currently only supported on Linux.
 
 Before installing RoBO, make sure you have ``libeigen`` and ``swig`` installed. 
-On ubuntu, you can install them with ``apt-get``
+On ubuntu, you can install them with ``apt-get``, like so:
 
 .. code-block:: console
 
     $ sudo apt-get install libeigen3-dev swig
 
-One of the dependencies of RoBO does not declare its dependencies and therefore we need
-to install these dependencies first. The order of dependencies in ``requirements.txt`` 
-reflects this order. To install them sequentially, use the following command
+Then, the repo can be installed, like so:
+
 
 .. code-block:: console
 
-    $ curl -s https://git.io/JLnCA | grep -v "^#" | xargs -n 1 -L 1 pip install
+    $ pip install git+https://github.com/Epistimio/orion.algo.robo
 
-Finally, you can install this package using PyPI
+..  TODO: Can we get this to be installable with PyPI even with links? How does Benzina do it?
+.. Finally, you can install this package using PyPI
 
-.. code-block:: console
+.. .. code-block:: console
 
-    $ pip install orion.algo.robo
+..     $ pip install orion.algo.robo
 
 
 Contribute or Ask
