@@ -1,9 +1,14 @@
 """
 Base class for RoBO algorithms.
 """
+from __future__ import annotations
+from abc import ABC
+from typing import Any, Callable, Iterable, Literal, Optional
+import typing
 import george
 import numpy
 from orion.algo.base import BaseAlgorithm
+from orion.algo.space import Space
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
 from robo.acquisition_functions.log_ei import LogEI
@@ -14,9 +19,20 @@ from robo.maximizers.random_sampling import RandomSampling
 from robo.maximizers.scipy_optimizer import SciPyOptimizer
 from robo.priors.default_priors import DefaultPrior
 from robo.solver.bayesian_optimization import BayesianOptimization
+import numpy as np
+from george.kernels import Kernel
+from robo.models.base_model import BaseModel
+from robo.acquisition_functions.base_acquisition import BaseAcquisitionFunction
+from abc import abstractmethod
+from orion.core.worker.trial import Trial
+from orion.core.utils.format_trials import tuple_to_trial, trial_to_tuple
 
 
-def build_bounds(space):
+AcquisitionFnName = Literal["ei", "log_ei", "pi", "lcb"]
+MaximizerName = Literal["random", "scipy", "differential_evolution"]
+
+
+def build_bounds(space: Space) -> tuple[np.ndarray, np.ndarray]:
     """
     Build bounds of optimization space
 
@@ -37,10 +53,10 @@ def build_bounds(space):
         lower.append(low)
         upper.append(high)
 
-    return list(map(numpy.array, (lower, upper)))
+    return np.array(lower), np.array(upper)
 
 
-def build_kernel(lower, upper):
+def build_kernel(lower: np.ndarray, upper: np.ndarray) -> Kernel:
     """
     Build kernels for GPs.
 
@@ -65,7 +81,7 @@ def build_kernel(lower, upper):
     return kernel
 
 
-def infer_n_hypers(kernel):
+def infer_n_hypers(kernel: Kernel) -> int:
     """Infer number of MCMC chains that should be used based on size of kernel"""
     n_hypers = 3 * len(kernel)
     if n_hypers % 2 == 1:
@@ -74,12 +90,12 @@ def infer_n_hypers(kernel):
     return n_hypers
 
 
-def build_prior(kernel):
+def build_prior(kernel: Kernel) -> DefaultPrior:
     """Build default GP prior based on kernel"""
     return DefaultPrior(len(kernel) + 1, numpy.random.RandomState(None))
 
 
-def build_acquisition_func(acquisition_func, model):
+def build_acquisition_func(acquisition_func: AcquisitionFnName, model: BaseModel):
     """
     Build acquisition function
 
@@ -92,22 +108,24 @@ def build_acquisition_func(acquisition_func, model):
 
     """
     if acquisition_func == "ei":
-        acquisition_func = EI(model)
+        acquisition_function = EI(model)
     elif acquisition_func == "log_ei":
-        acquisition_func = LogEI(model)
+        acquisition_function = LogEI(model)
     elif acquisition_func == "pi":
-        acquisition_func = PI(model)
+        acquisition_function = PI(model)
     elif acquisition_func == "lcb":
-        acquisition_func = LCB(model)
+        acquisition_function = LCB(model)
     else:
         raise ValueError(
             "'{}' is not a valid acquisition function".format(acquisition_func)
         )
 
-    return acquisition_func
+    return acquisition_function
 
 
-def build_optimizer(model, maximizer, acquisition_func):
+def build_optimizer(
+    model, maximizer: MaximizerName, acquisition_func: BaseAcquisitionFunction,
+) -> BayesianOptimization:
     """
     General interface for Bayesian optimization for global black box
     optimization problems.
@@ -157,7 +175,7 @@ def build_optimizer(model, maximizer, acquisition_func):
     return bo
 
 
-class RoBO(BaseAlgorithm):
+class RoBO(BaseAlgorithm, ABC):
     """
     Base class to wrap RoBO algorithms.
 
@@ -194,24 +212,28 @@ class RoBO(BaseAlgorithm):
     def __init__(
         self,
         space,
-        seed=0,
-        n_initial_points=20,
-        maximizer="random",
-        acquisition_func="log_ei",
+        seed: int = 0,
+        n_initial_points: int = 20,
+        maximizer: MaximizerName = "random",
+        acquisition_func: AcquisitionFnName = "log_ei",
         **kwargs,
     ):
 
-        self.model = None
+        self.model: Optional[BaseModel] = None
         self.robo = None
-        self._bo_duplicates = []
+        self._bo_duplicates: list[tuple[str, tuple[Trial, Trial.Result]]] = []
 
-        super(RoBO, self).__init__(
+        super().__init__(
             space,
             n_initial_points=n_initial_points,
             maximizer=maximizer,
             acquisition_func=acquisition_func,
             seed=seed,
         )
+        self.n_initial_points = n_initial_points
+        self.maximizer: MaximizerName = maximizer
+        self.acquisition_func: AcquisitionFnName = acquisition_func
+        self.seed = seed
 
         # Otherwise it is turned no 'random' because of BaseAlgorithms constructor... -_-
         self.maximizer = maximizer
@@ -221,12 +243,12 @@ class RoBO(BaseAlgorithm):
             setattr(self, key, value)
 
     @property
-    def space(self):
+    def space(self) -> Space:
         """Space of the optimizer"""
         return self._space
 
     @space.setter
-    def space(self, space):
+    def space(self, space: Space) -> None:
         """Setter of optimizer's space.
 
         Side-effect: Will initialize optimizer.
@@ -235,15 +257,17 @@ class RoBO(BaseAlgorithm):
         self._space = space
         self._initialize()
 
-    def _initialize_model(self):
+    @abstractmethod
+    def _initialize_model(self) -> None:
         """Build model and register it as ``self.model``"""
         raise NotImplementedError()
 
-    def build_acquisition_func(self):
+    def build_acquisition_func(self) -> BaseAcquisitionFunction:
         """Build and return the acquisition function."""
+        assert self.model is not None
         return build_acquisition_func(self.acquisition_func, self.model)
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         """Initialize the optimizer once the space is transformed"""
         self._initialize_model()
         self.robo = build_optimizer(
@@ -300,9 +324,9 @@ class RoBO(BaseAlgorithm):
         numpy.random.seed(rand_nums[3])
 
     @property
-    def state_dict(self):
+    def state_dict(self) -> dict:
         """Return a state dict that can be used to reset the state of the algorithm."""
-        s_dict = super(RoBO, self).state_dict
+        s_dict: dict[str, Any] = super().state_dict
 
         s_dict.update(
             {
@@ -312,18 +336,18 @@ class RoBO(BaseAlgorithm):
                 "bo_duplicates": self._bo_duplicates,
             }
         )
-
-        s_dict["model"] = self.model.state_dict()
+        if self.model is not None:
+            s_dict["model"] = self.model.state_dict()
 
         return s_dict
 
-    def set_state(self, state_dict):
+    def set_state(self, state_dict: dict) -> None:
         """Reset the state of the algorithm based on the given state_dict
 
         :param state_dict: Dictionary representing state of an algorithm
 
         """
-        super(RoBO, self).set_state(state_dict)
+        super().set_state(state_dict)
 
         self.rng.set_state(state_dict["rng_state"])
         numpy.random.set_state(state_dict["global_numpy_rng_state"])
@@ -331,7 +355,7 @@ class RoBO(BaseAlgorithm):
         self.model.set_state(state_dict["model"])
         self._bo_duplicates = state_dict["bo_duplicates"]
 
-    def suggest(self, num=None):
+    def suggest(self, num: int | None = None) -> list[Trial] | None:
         """Suggest a `num`ber of new sets of parameters.
 
         Perform a step towards negative gradient and suggest that point.
@@ -376,17 +400,17 @@ class RoBO(BaseAlgorithm):
 
         return points
 
-    def _suggest_random(self, num):
-        def sample(num):
+    def _suggest_random(self, num: int) -> list[Trial]:
+        def sample(num: int) -> list[Trial]:
             return self.space.sample(
                 num, seed=tuple(self.rng.randint(0, 1000000, size=3))
             )
 
         return self._suggest(num, sample)
 
-    def _suggest_bo(self, num):
+    def _suggest_bo(self, num: int) -> list[Trial]:
         # pylint: disable = unused-argument
-        def suggest_bo(num):
+        def suggest_bo(num: int) -> list[Trial]:
             # pylint: disable = protected-access
             point = list(self.robo.choose_next(self.X, self.y))
 
@@ -410,7 +434,7 @@ class RoBO(BaseAlgorithm):
         return self._suggest(num, suggest_bo)
 
     @property
-    def is_done(self):
+    def is_done(self) -> bool:
         """Whether the algorithm is done and will not make further suggestions.
 
         Return True, if an algorithm holds that there can be no further improvement.
