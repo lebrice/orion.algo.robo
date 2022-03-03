@@ -10,7 +10,7 @@ import versioneer
 
 repo_root = os.path.dirname(os.path.abspath(__file__))
 
-tests_require = ["pytest>=3.0.0"]
+tests_require = ["pytest>=3.0.0", "pytest-mock"]
 
 extras_require = {
     "test": tests_require,
@@ -43,7 +43,7 @@ setup_args = dict(
         ],
     },
     install_requires=[
-        "orion>=0.1.11",
+        "orion>=0.2.2",
         "numpy",
         "torch>=1.2.0",
         "pyyaml<6.0.0",  # NOTE: This is because of George usign yaml.load without passing a Loader
