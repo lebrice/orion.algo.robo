@@ -4,7 +4,7 @@ Base class for RoBO algorithms.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Iterable, Literal, Optional
+from typing import Any, Callable, Iterable, Literal, Optional, Sequence
 
 import george
 import numpy
@@ -212,8 +212,8 @@ class RoBO(BaseAlgorithm, ABC):
 
     def __init__(
         self,
-        space,
-        seed: int = 0,
+        space: Space,
+        seed: int | Sequence[int] | None = 0,
         n_initial_points: int = 20,
         maximizer: MaximizerName = "random",
         acquisition_func: AcquisitionFnName = "log_ei",
@@ -348,6 +348,10 @@ class RoBO(BaseAlgorithm, ABC):
 
         self.rng.set_state(state_dict["rng_state"])
         numpy.random.set_state(state_dict["global_numpy_rng_state"])
+        if self.robo is None or self.model is None:
+            raise RuntimeError(
+                "Model needs to be initialized before set_state can be called."
+            )
         self.robo.maximize_func.rng.set_state(state_dict["maximizer_rng_state"])
         self.model.set_state(state_dict["model"])
         self._bo_duplicates = state_dict["bo_duplicates"]
