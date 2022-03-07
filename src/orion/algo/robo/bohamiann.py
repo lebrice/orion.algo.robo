@@ -98,7 +98,7 @@ class RoBO_BOHAMIANN(RoBO):
         verbose=False,
     ):
 
-        super(RoBO_BOHAMIANN, self).__init__(
+        super().__init__(
             space,
             maximizer=maximizer,
             acquisition_func=acquisition_func,

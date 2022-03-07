@@ -77,7 +77,7 @@ class RoBO_DNGO(RoBO):
         adapt_epoch=5000,
     ):
 
-        super(RoBO_DNGO, self).__init__(
+        super().__init__(
             space,
             seed=seed,
             n_initial_points=n_initial_points,
@@ -165,7 +165,7 @@ class OrionDNGOWrapper(DNGO):
 
     def __init__(self, lower, upper, **kwargs):
 
-        super(OrionDNGOWrapper, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.lower = lower
         self.upper = upper
 

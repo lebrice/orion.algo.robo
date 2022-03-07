@@ -59,7 +59,7 @@ class RoBO_RandomForest(RoBO):
         return_total_variance=True,
     ):
 
-        super(RoBO_RandomForest, self).__init__(
+        super().__init__(
             space,
             maximizer=maximizer,
             acquisition_func=acquisition_func,
@@ -123,7 +123,7 @@ class OrionRandomForestWrapper(RandomForest):
         rng=None,
     ):
 
-        super(OrionRandomForestWrapper, self).__init__(
+        super().__init__(
             num_trees=num_trees,
             do_bootstrapping=do_bootstrapping,
             n_points_per_tree=n_points_per_tree,
@@ -142,7 +142,7 @@ class OrionRandomForestWrapper(RandomForest):
         # NOTE: We cannot save `reg_rng` state so instead we control it
         #       with random integers sampled from `rng` and keep track of `rng` state.
         self.reg_rng = reg.default_random_engine(int(self.rng.randint(10e8)))
-        super(OrionRandomForestWrapper, self).train(X, y, **kwargs)
+        super().train(X, y, **kwargs)
 
     def predict(self, X_test, **kwargs):
         """
@@ -151,7 +151,7 @@ class OrionRandomForestWrapper(RandomForest):
         # NOTE: We cannot save `reg_rng` state so instead we control it
         #       with random integers sampled from `rng` and keep track of `rng` state.
         self.reg_rng = reg.default_random_engine(int(self.rng.randint(10e8)))
-        return super(OrionRandomForestWrapper, self).predict(X_test, **kwargs)
+        return super().predict(X_test, **kwargs)
 
     def set_state(self, state_dict):
         """Restore the state of the optimizer"""
