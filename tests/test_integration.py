@@ -284,4 +284,6 @@ TestRoBO_DNGO.set_phases([("dngo", N_INIT + 1, "robo.choose_next")])
 
 TestRoBO_BOHAMIANN.set_phases([("bohamiann", N_INIT + 1, "robo.choose_next")])
 
-TestRoBO_ABLR.set_phases([("ablr", N_INIT + 1, "robo.choose_next")])
+TestRoBO_ABLR.set_phases(
+    [("random", 0, "space.sample"), ("ablr", N_INIT + 1, "robo.choose_next"),]
+)
