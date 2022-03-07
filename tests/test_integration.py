@@ -260,14 +260,14 @@ class TestRoBO_ABLR(BaseRoBOTests):
         "seed": 1234,
         "n_initial_points": N_INIT,
         "maximizer": "random",
-        # "acquisition_func" :"log_ei", # BUG: log_ei seems to only work when batch size == 1.
         "acquisition_func": "ei",
-        # feature_map: Encoder = None,
-        "alpha": 1.0,
-        "beta": 1.0,
-        "learning_rate": 0.001,
-        "batch_size": 100,
-        "epochs": 1,
+        "hparams": {
+            "alpha": 1.0,
+            "beta": 1.0,
+            "learning_rate": 0.001,
+            "batch_size": 10,
+            "epochs": 1,
+        },
         "normalize_inputs": True,
     }
 
