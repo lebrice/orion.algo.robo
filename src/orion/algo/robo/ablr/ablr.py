@@ -4,17 +4,19 @@
     https://papers.nips.cc/paper/7917-scalable-hyperparameter-transfer-learning)
 
 """
-
-from logging import getLogger
-from typing import Dict, List, Tuple
+from __future__ import annotations
+from logging import getLogger as get_logger
+from typing import Dict, List, Sequence, Tuple, Optional
 
 import numpy as np
 import torch
 
 from orion.algo.robo.ablr.ablr_model import ABLR
-from orion.algo.robo.base import RoBO, build_bounds
+from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO, build_bounds
+from orion.algo.space import Space
+from orion.core.worker.trial import Trial
 
-logger = getLogger(__file__)
+logger = get_logger(__file__)
 
 
 class RoBO_ABLR(RoBO):
@@ -28,18 +30,12 @@ class RoBO_ABLR(RoBO):
 
     def __init__(
         self,
-        space,
-        seed=0,
-        n_initial_points=20,
-        maximizer="random",
-        # acquisition_func="log_ei",# BUG: log_ei seems to only work when batch size == 1.
-        acquisition_func="ei",
-        # feature_map: Encoder = None,
-        alpha: float = 1.0,
-        beta: float = 1.0,
-        learning_rate: float = 0.001,
-        batch_size: int = 1000,
-        epochs: int = 1,
+        space: Space,
+        seed: int | Sequence[int] | None = 0,
+        n_initial_points: int = 20,
+        maximizer: MaximizerName = "random",
+        acquisition_func: AcquisitionFnName = "ei",
+        hparams: ABLR.HParams | Dict | None = None,
         normalize_inputs: bool = True,
     ):
         """
@@ -66,6 +62,9 @@ class RoBO_ABLR(RoBO):
         **kwargs:
             Arguments specific to each RoBO algorithms. These will be registered as part of
             the algorithm's configuration.
+
+
+        BUG: log_ei seems to only work when batch size == 1.
         """
         super().__init__(
             space=space,
@@ -73,32 +72,46 @@ class RoBO_ABLR(RoBO):
             n_initial_points=n_initial_points,
             maximizer=maximizer,
             acquisition_func=acquisition_func,
-            # feature_map=None,
-            alpha=alpha,
-            beta=beta,
-            learning_rate=learning_rate,
-            batch_size=batch_size,
-            epochs=epochs,
+            hparams=hparams,
             normalize_inputs=normalize_inputs,
         )
+        self.hparams = hparams
+        self.normalize_inputs = normalize_inputs
 
     def _initialize_model(self):
         self.model = OrionABLRWrapper(
-            self.space,
-            alpha=self.alpha,
-            beta=self.beta,
-            learning_rate=self.learning_rate,
-            batch_size=self.batch_size,
-            epochs=self.epochs,
-            normalize_inputs=self.normalize_inputs,
+            self.space, hparams=self.hparams, normalize_inputs=self.normalize_inputs,
         )
         # lower, upper = build_bounds(self.space)
         # n_hypers = infer_n_hypers(build_kernel(lower, upper))
 
-    def set_state(self, state_dict: Dict):
-        return super().set_state(state_dict)
+    def seed_rng(self, seed: int) -> None:
+        super().seed_rng(seed)
+        torch_seed = self.rng.randint(0, int(1e8))
+        torch.random.manual_seed(torch_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(torch_seed)
 
-    def suggest(self, num: int = None) -> List:
+    @property
+    def state_dict(self) -> dict:
+        state = super().state_dict
+        state["torch_rng"] = torch.random.get_rng_state()
+        if torch.cuda.is_available():
+            state["torch_cuda_rng"] = torch.cuda.random.get_rng_state_all()
+        return state
+
+    def set_state(self, state_dict: Dict):
+        super().set_state(state_dict)
+        torch_rng = state_dict["torch_rng"]
+        torch.random.set_rng_state(torch_rng)
+
+        # NOTE: In principle it could be possible to load a state_dict from an env with cuda in an
+        # env without cuda and vice-versa.
+        if torch.cuda.is_available() and "torch_cuda_rng" in state_dict:
+            torch_cuda_rng = state_dict["torch_cuda_rng"]
+            torch.cuda.random.set_rng_state_all(torch_cuda_rng)
+
+    def suggest(self, num: Optional[int] = None) -> Optional[List[Trial]]:
         """Suggest a `num`ber of new sets of parameters.
 
         Perform a step towards negative gradient and suggest that point.
@@ -109,6 +122,8 @@ class RoBO_ABLR(RoBO):
 
 
 class OrionABLRWrapper(ABLR):
+    """Orion wrapper arount the ABLR algorithm. """
+
     @property
     def lower(self) -> np.ndarray:
         return build_bounds(self.space)[0]
@@ -119,19 +134,18 @@ class OrionABLRWrapper(ABLR):
 
     def set_state(self, state_dict: Dict) -> None:
         """Restore the state of the optimizer"""
-        # TODO: Might be bugs with the shape of y_mean and y_var
+        random_state: Dict = state_dict.pop("rng")
+        torch.random.set_rng_state(random_state["torch"])
         self.load_state_dict(state_dict)
 
-    def load_state_dict(self, state_dict: Dict, strict: bool = True) -> Tuple:
-        random_state: Dict = state_dict.pop("rng", {})
-        if random_state:
-            torch.random.set_rng_state(random_state["torch"])
-        return super().load_state_dict(state_dict, strict=strict)
-
     def state_dict(
-        self, destination: str = None, prefix: str = "", keep_vars: bool = False
+        self,
+        destination: Optional[str] = None,
+        prefix: str = "",
+        keep_vars: bool = False,
     ) -> Dict:
         state_dict = super().state_dict(destination, prefix, keep_vars)
+        state_dict
         state_dict["rng"] = {
             "torch": torch.random.get_rng_state(),
         }
@@ -147,12 +161,12 @@ class OrionABLRWrapper(ABLR):
         # NOTE: No need to create a bunch of seeds, we only need the pytorch seed.
         pytorch_seed = seed
 
-        if torch.cuda.is_available():
-            torch.backends.cudnn.benchmark = False
-            torch.cuda.manual_seed_all(pytorch_seed)
-            torch.backends.cudnn.deterministic = True
-
         torch.manual_seed(pytorch_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(pytorch_seed)
+            # Not really necessary, makes code a LOT slower.
+            # torch.backends.cudnn.benchmark = False
+            # torch.backends.cudnn.deterministic = True
 
     # TODO: Not yet adding warm-start support here.
     # def warm_start(
@@ -169,11 +183,7 @@ def ablr_main():
 
     task = QuadraticsTask()
 
-    model = ABLR(
-        task,
-        epochs=10,
-        batch_size=10_000,
-    )
+    model = ABLR(task, epochs=10, batch_size=10_000,)
 
     # TODO: Should we rescale things? The samples wouldn't match their space though.
     print(f"Task: {task}")

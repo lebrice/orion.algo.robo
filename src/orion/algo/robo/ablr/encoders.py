@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-from torch.nn.utils import parameters_to_vector
+from torch.nn.utils.convert_parameters import parameters_to_vector
 
 
 class Encoder(nn.Module, ABC):

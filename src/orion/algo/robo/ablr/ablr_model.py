@@ -4,47 +4,53 @@
     https://papers.nips.cc/paper/7917-scalable-hyperparameter-transfer-learning)
 
 """
+from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 from logging import getLogger as get_logger
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 import torch
 import tqdm
 from orion.algo.space import Space
+
 from pybnn.base_model import BaseModel
-from robo.models.base_model import BaseModel as BaseModel_
+from robo.models.base_model import BaseModel as _BaseModel
 from torch import Tensor, nn
 from torch.linalg import norm
 from torch.utils.data import DataLoader, TensorDataset
+from torch.nn.parameter import Parameter
 
 from orion.algo.robo.ablr.encoders import Encoder, NeuralNetEncoder
 from orion.algo.robo.ablr.normal import Normal
 
+T = TypeVar("T", np.ndarray, Tensor)
 logger = get_logger(__name__)
 
+# NOTE: The BaseModel class is duplicated between PYBNN and RoBO.
+# TODO: Why exactly did I choose to inherit from both here?
 
-class ABLR(nn.Module, BaseModel, BaseModel_):
+
+class ABLR(nn.Module, BaseModel, _BaseModel):
     """Surrogate model for a single task."""
 
     @dataclass
     class HParams:
+        """ Hyper-Parameters of the ABLR algorithm. """
+
         alpha: float = 1.0
         beta: float = 1.0
         learning_rate: float = 0.001
         batch_size: int = 1000
         epochs: int = 1
+        feature_space_dims: int = 16
 
     def __init__(
         self,
         space: Space,
-        feature_map: Union[Encoder, Type[Encoder]] = NeuralNetEncoder,
-        alpha: float = 1.0,
-        beta: float = 1.0,
-        learning_rate: float = 0.001,
-        batch_size: int = 1000,
-        epochs: int = 1,
+        feature_map: Encoder | Type[Encoder] = NeuralNetEncoder,
+        hparams: ABLR.HParams | Dict | None = None,
         normalize_inputs: bool = True,
     ):
         if feature_map is None:
@@ -52,30 +58,27 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
         super().__init__()
         self.space: Space = space
         self.task_id: Optional[int] = None
-        # TODO: This isn't quite right I think.
+        # TODO: This might be OK since the algo has requirements for flattened reals, but need to
+        # double-check.
         self.input_dims = len(self.space)
+        if isinstance(hparams, dict):
+            hparams = self.HParams(**hparams)
+        self.hparams = hparams or self.HParams()
 
-        self.feature_space_dims = 100
         if not isinstance(feature_map, nn.Module):
             feature_map_type = feature_map
-            # TODO: change this, create the feature map directly? or not?
             feature_map = feature_map_type(
-                input_space=self.space, out_features=self.feature_space_dims
+                input_space=self.space, out_features=self.hparams.feature_space_dims
             )
         self.feature_map = feature_map
+        self.alpha = Parameter(torch.as_tensor([self.hparams.alpha], dtype=torch.float))
+        self.beta = Parameter(torch.as_tensor([self.hparams.beta], dtype=torch.float))
 
-        self.batch_size = batch_size
-        self.epochs = epochs
-
-        self.feature_map = feature_map
-        self.alpha = nn.Parameter(torch.as_tensor([alpha], dtype=torch.float))
-        self.beta = nn.Parameter(torch.as_tensor([beta], dtype=torch.float))
-
-        self.learning_rate = learning_rate
+        # self.learning_rate = learning_rate
         # self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         # BUG: Getting 'LBFGS' object doesn't have a _params attribute?!
         # self.optimizer = torch.optim.LBFGS(self.parameters(), lr=learning_rate)
-        self.optimizer = PatchedLBFGS(self.parameters(), lr=learning_rate)
+        self.optimizer = PatchedLBFGS(self.parameters(), lr=self.hparams.learning_rate)
         self.loss_fn = nn.MSELoss()
 
         self._predict_dist: Optional[Callable[[Tensor], Normal]] = None
@@ -107,20 +110,24 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
         assert self.optimizer._params is not None
         return super().load_state_dict(state_dict, strict=strict)
 
-    def predict_dist(self, x_test: Union[Tensor, np.ndarray]) -> Normal:
-        """Return the predictive distribution for the given points."""
-        with torch.no_grad():
-            # TODO: We shouldn't be doing this entire forward pass at each
-            # prediction step. Just debugging atm.
-            if self._predict_dist is None:
-                _, self._predict_dist = self(self.X, self.y)
-            y_pred_dist = self._predict_dist(x_test)
-        return y_pred_dist
-
     def predict(self, X_test: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Return the predictive mean and variance for the given points."""
         y_pred_distribution = self.predict_dist(X_test)
-        return y_pred_distribution.mean.numpy(), y_pred_distribution.variance.numpy()
+        return (
+            y_pred_distribution.mean.cpu().numpy(),
+            y_pred_distribution.variance.cpu().numpy(),
+        )
+
+    def predict_dist(self, x_test: Union[Tensor, np.ndarray]) -> Normal:
+        """Return the predictive distribution for the given points."""
+        with torch.no_grad():
+            if self._predict_dist is None:
+                # re-create the predictive distribution.
+                # NOTE: This gets overwritten everytime a new point is observed, so we know for sure
+                # that this is always the most up-to-date predictions.
+                _, self._predict_dist = self(self.X, self.y)
+            y_pred_dist = self._predict_dist(x_test)
+        return y_pred_dist
 
     def forward(
         self, x_train: Tensor, y_train: Tensor
@@ -173,7 +180,7 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
     def get_loss(self, x: np.ndarray, y: np.ndarray) -> Tensor:
         return self(x, y)[0]
 
-    def train(self, X: np.ndarray, y: np.ndarray, do_optimize: bool = None):
+    def train(self, X: np.ndarray, y: np.ndarray, do_optimize: Optional[bool] = None):
         # Save the dataset so we can use it to predict the mean and variance later.
         # NOTE: This do_optimize isn't used, but is a parameter of the Robo base class.
         self.X = torch.as_tensor(X, dtype=torch.float)
@@ -192,12 +199,12 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
         # valid_dataset = dataset[n_train:]
 
         train_dataloader = DataLoader(
-            train_dataset, batch_size=self.batch_size, shuffle=True
+            train_dataset, batch_size=self.hparams.batch_size, shuffle=True
         )
         # TODO: No validation dataset for now.
         # valid_dataloader = DataLoader(valid_dataset, batch_size=100, shuffle=True)
 
-        outer_pbar = tqdm.tqdm(range(self.epochs), desc="Epoch")
+        outer_pbar = tqdm.tqdm(range(self.hparams.epochs), desc="Epoch")
         for epoch in outer_pbar:
             with tqdm.tqdm(train_dataloader, position=1, leave=False) as inner_pbar:
                 for i, (x_batch, y_batch) in enumerate(inner_pbar):
@@ -247,103 +254,22 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
             y = y.cpu().numpy()
         return x, y
 
-    # @staticmethod
-    def _normalize(
-        self, x: np.ndarray, mean: np.ndarray, var: np.ndarray
-    ) -> np.ndarray:
-        assert x.shape, x
-
-        if isinstance(x, np.ndarray):
-            assert x.numel()
-            mean = mean.cpu().numpy() if isinstance(mean, Tensor) else mean
-            var = var.cpu().numpy() if isinstance(var, Tensor) else var
-            x -= mean
-            x /= var
-            return x
-
-        if isinstance(x, Tensor):
-            in_shape = x.shape
-            assert x.numel(), f"Empty x? {x}, {self.space}, {self.task_id}, {self.task}"
-            x = x.reshape([-1, x.shape[-1]])
-
-            mean = (
-                torch.as_tensor(mean).type_as(x)
-                if isinstance(mean, np.ndarray)
-                else mean
-            )
-            mean = torch.atleast_2d(mean)
-            var = (
-                torch.as_tensor(var).type_as(x) if isinstance(var, np.ndarray) else var
-            )
-            var = torch.atleast_2d(var)
-
-            assert len(x.shape) == 2
-            assert len(mean.shape) == 2
-            assert len(var.shape) == 2
-            mean = mean.reshape([-1, x.shape[-1]])
-            mean = mean.expand_as(x)
-            var = var.reshape([-1, x.shape[-1]])
-            var = var.expand_as(x)
-
-            assert x.shape == mean.shape, (x.shape, mean.shape)
-
-            return x.sub_(mean).div_(var).reshape(in_shape)
-
-            x /= var
-            return x
-
-        assert False
-
-    @staticmethod
-    def _unnormalize(x: np.ndarray, mean: np.ndarray, var: np.ndarray) -> np.ndarray:
-        if isinstance(x, np.ndarray):
-            mean = mean.cpu().numpy() if isinstance(mean, Tensor) else mean
-            var = var.cpu().numpy() if isinstance(var, Tensor) else var
-            x[:, : mean.shape[-1]] *= var
-            x[:, : mean.shape[-1]] += mean
-            return x
-
-        if isinstance(x, (Tensor, Normal)):
-            mean = (
-                torch.as_tensor(mean).type_as(x)
-                if isinstance(mean, np.ndarray)
-                else mean
-            )
-            # mean = torch.atleast_2d(mean)
-            var = (
-                torch.as_tensor(var).type_as(x) if isinstance(var, np.ndarray) else var
-            )
-            # var = torch.atleast_2d(var)
-            x *= var
-            x += mean
-            return x
-
-        assert False, x
-
-    def normalize_x(self, x: Union[np.ndarray, Tensor]):
-        # return self._normalize(x, self.x_mean, self.x_var)
+    def normalize_x(self, x: T) -> T:
         x -= self.x_mean
         x /= self.x_var
         return x
 
     def unnormalize_x(self, x: Tensor):
-        return self._unnormalize(x, self.x_mean, self.x_var)
         x *= self.x_var
         x += self.x_mean
         return x
 
-    def normalize_y(self, y: Union[Tensor, Normal]) -> Union[Tensor, Normal]:
-        return self._normalize(y.reshape([-1, 1]), self.y_mean, self.y_var).reshape(
-            y.shape
-        )
-
+    def normalize_y(self, y: Tensor) -> Tensor:
         y -= self.y_mean
         y /= self.y_var
         return y
 
-    def unnormalize_y(self, y: Union[Tensor, Normal]) -> Union[Tensor, Normal]:
-        return self._unnormalize(y, self.y_mean, self.y_var)
-
+    def unnormalize_y(self, y: Tensor) -> Tensor:
         y *= self.y_var
         y += self.y_mean
         return y
@@ -414,7 +340,8 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
 
             def predict_mean(new_x: Tensor) -> Tensor:
                 phi_t_star = self.feature_map(new_x)
-                # TODO: Adding the .T on phi_t_star below, since there seems to be some bugs in the shapes..
+                # TODO: Adding the .T on phi_t_star below, since there seems to be some bugs in the
+                # shapes..
                 mean = r_t * torch.chain_matmul(e_t.T, l_t_inv, phi_t_star.T)
                 return mean.reshape([new_x.shape[0], 1])
 
@@ -441,14 +368,11 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
 
             return negative_log_marginal_likelihood, predictive_distribution
 
-        # N <= D:
+        # N <= D: Fewer points than dimensions.
         # (Following the supplementary material)
+        assert n <= d
         # TODO: This hasn't been fully tested yet.
         # k_t = r_t * phi_t @ phi_t.T + torch.eye(n)
-
-        # BUG: `y_t` has way too low mean and variance:
-        # tensor(-3.7835e-12), tensor(4.7180e-05)
-        # assert False, (y_t.mean(), y_t.std())
         try:
             k_t = torch.eye(n) + r_t * phi_t @ phi_t.T
             E_t = try_get_cholesky(k_t)
@@ -458,11 +382,21 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
                 + self.beta / 2 * ((E_t_inv @ y_t) ** 2).sum()
                 + torch.log(E_t.diag()).sum()
             )
-        except RuntimeError as e:
+        except RuntimeError as err:
             # Often happens that we get NaNs in the matrices (probably due to low
             # variance in y_t?)
             # FIXME: Trying to return random values at this point:
-            return torch.zeros(1), lambda x: Normal(loc=y_t.mean(), variance=y_t.var())
+            logger.critical(
+                f"Unable to make a prediction: {err}. Predictive distribution will be independant "
+                f"from input."
+            )
+            return (
+                torch.zeros(1),  # Loss
+                lambda x: Normal(
+                    loc=y_t.mean(),
+                    variance=torch.max(y_t.var(), torch.ones_like(y_t) * 1e-7),
+                ),
+            )
 
         def predict_mean(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
@@ -479,26 +413,31 @@ class ABLR(nn.Module, BaseModel, BaseModel_):
         def predict_variance(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
             y_t_norm = (y_t ** 2).sum()
-            second_term = torch.chain_matmul(
-                E_t_inv,
-                phi_t,
-                phi_t_star.T,
+            second_term = torch.chain_matmul(E_t_inv, phi_t, phi_t_star.T,)
+            variance: Tensor = (1 / self.alpha) * (
+                y_t_norm - r_t * (second_term ** 2).sum(0)
             )
-            variance = (1 / self.alpha) * (y_t_norm - r_t * (second_term ** 2).sum(0))
             if (variance < 0).any():
                 min_variance = variance.min()
                 logger.critical(
                     RuntimeError(f"Variance has negative values! (min={min_variance})")
                 )
                 variance = variance + torch.abs(min_variance) + 1e-8
-            assert (variance > 0).all()
+            if variance.isnan().any():
+                logger.error(f"Variance is NaN!")
             return variance
 
         def predictive_distribution(new_x: Tensor) -> Normal:
             mean = predict_mean(new_x)
             variance = predict_variance(new_x)
             # logger.debug(f"Predicted variance: {variance}")
-            assert (variance > 0).all()
+            if mean.isnan().any():
+                logger.error(f"Mean is NaN!")
+                mean = self.y.mean()
+            if variance.isnan().any() or (variance <= 0).any():
+                logger.error(f"Variance is NaN or negative!")
+                variance = torch.max(self.y_var, torch.ones_like(self.y_var) * 1e-3)
+                # variance = torch.ones_like(mean) * 1000
             predictive_dist = Normal(mean, variance)
             return predictive_dist
 
@@ -577,48 +516,74 @@ def try_function(
                 ) from e
 
 
-from functools import partial
+from functools import partial, singledispatch
 
 try_get_cholesky = partial(try_function, torch.cholesky)
 try_get_cholesky_inverse = partial(try_function, torch.cholesky_inverse)
 
 
-def ablr_main():
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from warmstart.tasks.quadratics import QuadraticsTask, QuadraticsTaskHParams
-
-    task = QuadraticsTask()
-
-    model = ABLR(
-        task,
-        epochs=10,
-        batch_size=10_000,
-    )
-
-    # TODO: Should we rescale things? The samples wouldn't match their space though.
-    print(f"Task: {task}")
-
-    train_dataset = task.make_dataset(10_000)
-    X, y = train_dataset.tensors
-    # Just to get rid of the negative values in X.
-
-    model.train(X, y)
-
-    test_dataset = task.make_dataset(100)
-    test_x, test_y = test_dataset.tensors
-
-    with torch.no_grad():
-        y_pred_dist: Normal = model.predict_dist(test_x)
-        y_pred = y_pred_dist.sample()
-
-        for x, y_pred_i, y_true in zip(test_x, y_pred, test_y):
-            print(f"X: {x}, y_pred: {y_pred_i.item()}, y_true: {y_true.item():.3f}")
-        # test_loss = nn.MSELoss()(test_y, y_pred.reshape(test_y.shape))
-
-    # print(f"Test loss: {test_loss}")
-    exit()
+@singledispatch
+def normalize(x: T, mean: T, var: T) -> T:
+    raise RuntimeError(f"Don't know how to normalize {x} of type {type(x)}")
 
 
-if __name__ == "__main__":
-    ablr_main()
+@normalize.register(np.ndarray)
+def _normalize_ndarray(x: np.ndarray, mean: np.ndarray, var: np.ndarray) -> np.ndarray:
+    if not x.shape or np.product(x.shape) == 0:
+        raise ValueError("Empty array can't be normalized!")
+    mean = mean.cpu().numpy() if isinstance(mean, Tensor) else mean
+    var = var.cpu().numpy() if isinstance(var, Tensor) else var
+    x -= mean
+    x = x / var
+    return x
+
+
+@normalize.register(Tensor)
+def _normalize_tensor(x: Tensor, mean: Tensor, var: Tensor) -> Tensor:
+    in_shape = x.shape
+    assert x.numel()
+    x = x.reshape([-1, x.shape[-1]])
+
+    mean = torch.as_tensor(mean).type_as(x) if isinstance(mean, np.ndarray) else mean
+    mean = torch.atleast_2d(mean)
+    var = torch.as_tensor(var).type_as(x) if isinstance(var, np.ndarray) else var
+    var = torch.atleast_2d(var)
+
+    assert len(x.shape) == 2
+    assert len(mean.shape) == 2
+    assert len(var.shape) == 2
+    mean = mean.reshape([-1, x.shape[-1]])
+    mean = mean.expand_as(x)
+    var = var.reshape([-1, x.shape[-1]])
+    var = var.expand_as(x)
+
+    assert x.shape == mean.shape, (x.shape, mean.shape)
+
+    return x.sub_(mean).div_(var).reshape(in_shape)
+
+
+@singledispatch
+def unnormalize(x: T, mean: T, var: T) -> T:
+    raise RuntimeError(f"Don't know how to unnormalize {x} of type {type(x)}.")
+
+
+@unnormalize.register(np.ndarray)
+def _unnormalize_ndarray(
+    x: np.ndarray, mean: np.ndarray, var: np.ndarray
+) -> np.ndarray:
+    mean = mean.cpu().numpy() if isinstance(mean, Tensor) else mean
+    var = var.cpu().numpy() if isinstance(var, Tensor) else var
+    x[:, : mean.shape[-1]] *= var
+    x[:, : mean.shape[-1]] += mean
+    return x
+
+
+@unnormalize.register(Tensor)
+def _unnormalize_tensor(x: Tensor, mean: Tensor, var: Tensor) -> Tensor:
+    mean = torch.as_tensor(mean).type_as(x) if isinstance(mean, np.ndarray) else mean
+    # mean = torch.atleast_2d(mean)
+    var = torch.as_tensor(var).type_as(x) if isinstance(var, np.ndarray) else var
+    # var = torch.atleast_2d(var)
+    x *= var
+    x += mean
+    return x
