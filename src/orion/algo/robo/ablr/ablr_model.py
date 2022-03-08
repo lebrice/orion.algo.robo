@@ -21,6 +21,7 @@ from torch import Tensor, nn
 from torch.linalg import norm
 from torch.utils.data import DataLoader, TensorDataset
 from torch.nn.parameter import Parameter
+from functools import partial, singledispatch
 
 from orion.algo.robo.ablr.encoders import Encoder, NeuralNetEncoder
 from orion.algo.robo.ablr.normal import Normal
@@ -330,7 +331,7 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
             k_t = r_t * phi_t.T @ phi_t
             l_t = try_get_cholesky(k_t)
             l_t_inv = try_get_cholesky_inverse(l_t)
-            e_t = torch.chain_matmul(l_t_inv, phi_t.T, y_t)
+            e_t = torch.linalg.multi_dot([l_t_inv, phi_t.T, y_t])
 
             negative_log_marginal_likelihood = (
                 -n / 2 * torch.log(self.beta)
@@ -447,7 +448,6 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
 class PatchedLBFGS(torch.optim.LBFGS):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # assert False, self._params
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -467,14 +467,31 @@ class PatchedLBFGS(torch.optim.LBFGS):
 
 
 def offset_function(some_matrix: Tensor, attempt: int, max_attempts: int) -> Tensor:
+    """Adds some offset/noise to the given matrix, to make the cholesky decomposition work.
+
+    Parameters
+    ----------
+    some_matrix : Tensor
+        some matrix that will be passed to a function like `torch.linalg.cholesky`.
+    attempt : int
+        the current attempt number
+    max_attempts : int
+        The max number of attempts.
+        NOTE: Currently unused, but the idea is that if we used a "maximum possible noise" below, we
+        could use `attempt` and `max_attempts` to gage how much noise to add.
+
+    Returns
+    -------
+    Tensor
+        `some_matrix`, with some added offset / noise.
+    """
     if some_matrix.shape[-2] == some_matrix.shape[-1]:
         # If the matrix is square, add an offset to the diagonal:
         offset = 0.1 * (2 ** (attempt - 1))
         return some_matrix + torch.eye(some_matrix.shape[-1]) * offset
-    else:
-        # Add progressively larger random noise?
-        noise_std = 0.1 * (2 ** (attempt - 1))
-        return some_matrix + torch.randn_like(some_matrix) * noise_std
+    # Add progressively larger random noise?
+    noise_std = 0.1 * (2 ** (attempt - 1))
+    return some_matrix + torch.randn_like(some_matrix) * noise_std
 
 
 def try_function(
@@ -483,7 +500,7 @@ def try_function(
     max_attempts: int = 10,
     offset_function: Callable[[Tensor, int, int], Tensor] = offset_function,
 ) -> Tensor:
-    """Attempt to get the choleksy of the given matrix, adding progressively
+    """Attempt to apply the given function of the given matrix, adding progressively
     larger offset/noise matrices until it works, else raises an error.
     """
     try:
@@ -505,7 +522,6 @@ def try_function(
                 logger.debug(
                     f"Managed to get the operation to work after {attempt} attemps."
                 )
-            return result
 
         except RuntimeError as e:
             if attempt == max_attempts:
@@ -515,10 +531,11 @@ def try_function(
                     f"(matrix: {some_matrix})"
                 ) from e
 
+        else:
+            return result
 
-from functools import partial, singledispatch
 
-try_get_cholesky = partial(try_function, torch.cholesky)
+try_get_cholesky = partial(try_function, torch.linalg.cholesky)
 try_get_cholesky_inverse = partial(try_function, torch.cholesky_inverse)
 
 
