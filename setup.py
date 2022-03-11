@@ -46,12 +46,13 @@ setup_args = dict(
         "orion>=0.2.2",
         "numpy",
         "torch>=1.2.0",
-        "pyyaml<6.0.0",  # NOTE: This is because of George usign yaml.load without passing a Loader
+        "pyyaml<6.0.0",  # NOTE: This is because of George uses `yaml.load` without passing a Loader
         "pybind11",
         "Jinja2",
         "tqdm",
-        "pybnn @ git+https://github.com/automl/pybnn.git",
-        "robo @ git+https://github.com/automl/RoBO.git",
+        "george @ git+https://github.com/automl/george.git@875d748e3f49be1f03a924043bc575de2c8a476c",
+        "pybnn @ git+https://github.com/automl/pybnn.git@59befe512d6f668f1dfb39ad9ba4c55abc8dd0f6",
+        "robo @ git+https://github.com/automl/RoBO.git@91366b12a1a3deb8e80dd08599e0eaf4df28adc1",
     ],
     tests_require=tests_require,
     setup_requires=["setuptools", "pytest-runner>=2.0,<3dev"],
