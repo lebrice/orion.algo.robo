@@ -50,8 +50,6 @@ setup_args = dict(
         "pybind11",
         "Jinja2",
         "tqdm",
-        "george @ git+https://github.com/automl/george.git@875d748e3f49be1f03a924043bc575de2c8a476c",
-        "pybnn @ git+https://github.com/automl/pybnn.git@59befe512d6f668f1dfb39ad9ba4c55abc8dd0f6",
         "robo @ git+https://github.com/automl/RoBO.git@91366b12a1a3deb8e80dd08599e0eaf4df28adc1",
     ],
     tests_require=tests_require,
