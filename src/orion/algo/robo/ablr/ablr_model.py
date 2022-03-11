@@ -16,7 +16,7 @@ import tqdm
 from orion.algo.space import Space
 
 from pybnn.base_model import BaseModel
-from robo.models.base_model import BaseModel as _BaseModel
+
 from torch import Tensor, nn
 from torch.linalg import norm
 from torch.utils.data import DataLoader, TensorDataset
@@ -29,11 +29,8 @@ from orion.algo.robo.ablr.normal import Normal
 T = TypeVar("T", np.ndarray, Tensor)
 logger = get_logger(__name__)
 
-# NOTE: The BaseModel class is duplicated between PYBNN and RoBO.
-# TODO: Why exactly did I choose to inherit from both here?
 
-
-class ABLR(nn.Module, BaseModel, _BaseModel):
+class ABLR(nn.Module, BaseModel):
     """Surrogate model for a single task."""
 
     @dataclass
@@ -75,9 +72,8 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
         self.alpha = Parameter(torch.as_tensor([self.hparams.alpha], dtype=torch.float))
         self.beta = Parameter(torch.as_tensor([self.hparams.beta], dtype=torch.float))
 
-        # self.learning_rate = learning_rate
-        # self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
-        # BUG: Getting 'LBFGS' object doesn't have a _params attribute?!
+        # NOTE: The "'LBFGS' object doesn't have a _params attribute" bug is fixed with the
+        # PatchedLBFGS class below.
         # self.optimizer = torch.optim.LBFGS(self.parameters(), lr=learning_rate)
         self.optimizer = PatchedLBFGS(self.parameters(), lr=self.hparams.learning_rate)
         self.loss_fn = nn.MSELoss()
@@ -231,11 +227,9 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
                             "beta": self.beta.item(),
                         }
                     )
-
-                    # This is a bit weird, idk if this is how its supposed to be
-                    # used:
-                    def closure():
-                        return self(self.X, self.y)[0]
+                    # NOTE: LBFGS optimizer requires a closure that recomputes the loss.
+                    def closure() -> float:
+                        return self(x_batch, y_batch)[0]
 
                     try:
                         self.optimizer.step(closure=closure)
@@ -247,7 +241,7 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
                         )
                         return
 
-    def get_incumbent(self):
+    def get_incumbent(self) -> Tuple[np.ndarray, float]:
         x, y = super().get_incumbent()
         if isinstance(x, Tensor):
             x = x.cpu().numpy()
@@ -275,7 +269,7 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
         y += self.y_mean
         return y
 
-    def marginal_log_likelihood(self, theta):
+    def marginal_log_likelihood(self, theta: np.ndarray) -> float:
         """
         Log likelihood of the data marginalised over the weights w. See chapter 3.5 of
         the book by Bishop of an derivation.
@@ -292,7 +286,7 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
         """
         return -self.negative_mll(theta)
 
-    def negative_mll(self, theta):
+    def negative_mll(self, theta: np.ndarray) -> float:
         """
         Returns the negative marginal log likelihood.
 
@@ -311,7 +305,7 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
     def predictive_mean_and_variance(
         self, x_t: Tensor, y_t: Tensor
     ) -> Tuple[Tensor, Callable[[Tensor], Normal]]:
-        """Trying to replicate the first part of section 3.1 of the ABLR paper.
+        """Replicates the first part of section 3.1 of the ABLR paper.
 
         Returns the 'learning criterion' (i.e. the loss term), and a function
         that gives the predictive distribution (Normal) for a given (normalized)
@@ -399,7 +393,7 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
                 ),
             )
 
-        def predict_mean(new_x: Tensor) -> Tensor:
+        def _predict_mean(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
             return r_t * torch.chain_matmul(
                 # BUG: Still debugging some shape errors.
@@ -411,7 +405,7 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
                 phi_t_star.T,  # [50, N]
             )
 
-        def predict_variance(new_x: Tensor) -> Tensor:
+        def _predict_variance(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
             y_t_norm = (y_t ** 2).sum()
             second_term = torch.chain_matmul(E_t_inv, phi_t, phi_t_star.T,)
@@ -428,9 +422,9 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
                 logger.error(f"Variance is NaN!")
             return variance
 
-        def predictive_distribution(new_x: Tensor) -> Normal:
-            mean = predict_mean(new_x)
-            variance = predict_variance(new_x)
+        def _predictive_distribution(new_x: Tensor) -> Normal:
+            mean = _predict_mean(new_x)
+            variance = _predict_variance(new_x)
             # logger.debug(f"Predicted variance: {variance}")
             if mean.isnan().any():
                 logger.error(f"Mean is NaN!")
@@ -442,7 +436,7 @@ class ABLR(nn.Module, BaseModel, _BaseModel):
             predictive_dist = Normal(mean, variance)
             return predictive_dist
 
-        return negative_log_marginal_likelihood, predictive_distribution
+        return negative_log_marginal_likelihood, _predictive_distribution
 
 
 class PatchedLBFGS(torch.optim.LBFGS):
