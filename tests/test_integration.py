@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """Perform integration tests for `orion.algo.robo`."""
+from __future__ import annotations
+
 import copy
 import itertools
 from typing import ClassVar, Type
 
 from orion.core.utils.format_trials import tuple_to_trial
 from orion.core.worker.trial import Trial
-from orion.testing.algo import BaseAlgoTests
+from orion.testing.algo import BaseAlgoTests, TestPhase
 
 N_INIT = 10
 
@@ -23,6 +25,7 @@ class BaseRoBOTests(BaseAlgoTests):
         algo = self.create_algo()
         spy = self.spy_phase(mocker, 0, algo, "space.sample")
         trials = algo.suggest(1000)
+        assert trials is not None
         assert len(trials) == N_INIT
 
     def test_suggest_init_missing(self, mocker):
@@ -30,6 +33,7 @@ class BaseRoBOTests(BaseAlgoTests):
         missing = 3
         spy = self.spy_phase(mocker, N_INIT - missing, algo, "space.sample")
         trials = algo.suggest(1000)
+        assert trials is not None
         assert len(trials) == missing
 
     def test_suggest_init_overflow(self, mocker):
@@ -37,11 +41,13 @@ class BaseRoBOTests(BaseAlgoTests):
         spy = self.spy_phase(mocker, N_INIT - 1, algo, "space.sample")
         # Now reaching N_INIT
         trials = algo.suggest(1000)
+        assert trials is not None
         assert len(trials) == 1
         # Verify point was sampled randomly, not using BO
         assert spy.call_count == 1
         # Overflow above N_INIT
         trials = algo.suggest(1000)
+        assert trials is not None
         assert len(trials) == 1
         # Verify point was sampled randomly, not using BO
         assert spy.call_count == 2
@@ -50,6 +56,7 @@ class BaseRoBOTests(BaseAlgoTests):
         algo = self.create_algo()
         spy = self.spy_phase(mocker, num, algo, attr)
         trials = algo.suggest(5)
+        assert trials is not None
         if num == 0:
             assert len(trials) == 5
         else:
@@ -72,11 +79,11 @@ class BaseRoBOTests(BaseAlgoTests):
         i = 0
         for i, (x, y, z) in enumerate(itertools.product(range(5), "abc", range(1, 7))):
             assert not algo.is_done
-            n = len(algo.algorithm._trials_info)
+            n = len(algo.algorithm.registry)
             trial = tuple_to_trial((x, y, z), space=algo.space)
             trial.results = [Trial.Result(type="objective", value=i)]
             algo.observe([trial])
-            assert len(algo.algorithm._trials_info) == n + 1
+            assert len(algo.algorithm.registry) == n + 1
 
         assert i + 1 == space.cardinality
 
@@ -95,6 +102,11 @@ class TestRoBO_GP(BaseRoBOTests):
         "seed": 1234,
     }
 
+    phases: ClassVar[list[TestPhase]] = [
+        TestPhase("random", 0, "space.sample"),
+        TestPhase("gp", N_INIT + 1, "robo.choose_next"),
+    ]
+
 
 class TestRoBO_GP_MCMC(BaseRoBOTests):
     algo_name = "robo_gp_mcmc"
@@ -108,6 +120,9 @@ class TestRoBO_GP_MCMC(BaseRoBOTests):
         "n_initial_points": N_INIT,
         "seed": 1234,
     }
+    phases: ClassVar[list[TestPhase]] = [
+        TestPhase("gp_mcmc", N_INIT + 1, "robo.choose_next")
+    ]
 
 
 class TestRoBO_RandomForest(BaseRoBOTests):
@@ -123,6 +138,9 @@ class TestRoBO_RandomForest(BaseRoBOTests):
         "n_initial_points": N_INIT,
         "seed": 1234,
     }
+    phases: ClassVar[list[TestPhase]] = [
+        TestPhase("randomforest", N_INIT + 1, "robo.choose_next")
+    ]
 
 
 class TestRoBO_DNGO(TestRoBO_GP):
@@ -142,6 +160,9 @@ class TestRoBO_DNGO(TestRoBO_GP):
         "n_initial_points": N_INIT,
         "seed": 1234,
     }
+    phases: ClassVar[list[TestPhase]] = [
+        TestPhase("dngo", N_INIT + 1, "robo.choose_next")
+    ]
 
     def test_configuration_to_model(self, mocker):
 
@@ -190,6 +211,9 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         "n_initial_points": N_INIT,
         "seed": 1234,
     }
+    phases: ClassVar[list[TestPhase]] = [
+        TestPhase("bohamiann", N_INIT + 1, "robo.choose_next")
+    ]
 
     def test_configuration_to_model(self, mocker):
 
@@ -235,15 +259,3 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         assert spy.call_count > 0
         assert spy.call_args[1] == train_config
 
-
-TestRoBO_GP.set_phases(
-    [("random", 0, "space.sample"), ("gp", N_INIT + 1, "robo.choose_next")]
-)
-
-TestRoBO_GP_MCMC.set_phases([("gp_mcmc", N_INIT + 1, "robo.choose_next")])
-
-TestRoBO_RandomForest.set_phases([("randomforest", N_INIT + 1, "robo.choose_next")])
-
-TestRoBO_DNGO.set_phases([("dngo", N_INIT + 1, "robo.choose_next")])
-
-TestRoBO_BOHAMIANN.set_phases([("bohamiann", N_INIT + 1, "robo.choose_next")])

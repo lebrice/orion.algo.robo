@@ -4,7 +4,16 @@ Base class for RoBO algorithms.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Iterable, Literal, Optional, Sequence
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Literal,
+    Optional,
+    Sequence,
+    Generic,
+    TypeVar,
+)
 
 import george
 import numpy
@@ -24,6 +33,7 @@ from robo.maximizers.differential_evolution import DifferentialEvolution
 from robo.maximizers.random_sampling import RandomSampling
 from robo.maximizers.scipy_optimizer import SciPyOptimizer
 from robo.models.base_model import BaseModel
+from pybnn.base_model import BaseModel as PyBnnBaseModel
 from robo.priors.default_priors import DefaultPrior
 from robo.solver.bayesian_optimization import BayesianOptimization
 
@@ -123,7 +133,7 @@ def build_acquisition_func(acquisition_func: AcquisitionFnName, model: BaseModel
 
 
 def build_optimizer(
-    model: BaseModel,
+    model: WrappedRoboModel,
     maximizer: MaximizerName,
     acquisition_func: BaseAcquisitionFunction,
 ) -> BayesianOptimization:
@@ -176,7 +186,25 @@ def build_optimizer(
     return bo
 
 
-class RoBO(BaseAlgorithm, ABC):
+class WrappedRoboModel(BaseModel, ABC):
+    lower: np.ndarray
+    upper: np.ndarray
+
+    @abstractmethod
+    def seed(self, seed: int | Sequence[int] | None) -> None:
+        ...
+
+    def state_dict(self) -> dict:
+        ...
+
+    def set_state(self, state_dict: dict) -> None:
+        ...
+
+
+ModelType = TypeVar("ModelType", bound=WrappedRoboModel)
+
+
+class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
     """
     Base class to wrap RoBO algorithms.
 
@@ -206,9 +234,9 @@ class RoBO(BaseAlgorithm, ABC):
 
     """
 
-    requires_type = "real"
-    requires_dist = "linear"
-    requires_shape = "flattened"
+    requires_type: ClassVar[str] = "real"
+    requires_dist: ClassVar[str] = "linear"
+    requires_shape: ClassVar[str] = "flattened"
 
     def __init__(
         self,
@@ -217,49 +245,41 @@ class RoBO(BaseAlgorithm, ABC):
         n_initial_points: int = 20,
         maximizer: MaximizerName = "random",
         acquisition_func: AcquisitionFnName = "log_ei",
-        **kwargs,
     ):
-
-        self.model: Optional[BaseModel] = None
-        self.robo: Optional[BayesianOptimization] = None
-        self._bo_duplicates: list[tuple[str, tuple[Trial, Trial.Result]]] = []
-        self._space: Space
-        super().__init__(
-            space,
-            n_initial_points=n_initial_points,
-            maximizer=maximizer,
-            acquisition_func=acquisition_func,
-            seed=seed,
-        )
+        super().__init__(space)
+        self._bo_duplicates: dict[str, Trial] = {}
         self.n_initial_points = n_initial_points
         self.maximizer: MaximizerName = maximizer
         self.acquisition_func: AcquisitionFnName = acquisition_func
         self.seed = seed
-
-        # Otherwise it is turned no 'random' because of BaseAlgorithms constructor... -_-
         self.maximizer = maximizer
 
-        self._param_names += list(kwargs.keys())
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+        # "abstract" attributes, set in `_initialize`
+        self.model: ModelType
+        self.robo: BayesianOptimization
+        self.rng: numpy.random.RandomState
+        self._initialized: bool = False
+
+    def _initialize(self, seed_rng: bool = True) -> None:
+        if self._initialized:
+            return
+        self.model = self.build_model()
+        self.robo = build_optimizer(
+            self.model,
+            maximizer=self.maximizer,
+            acquisition_func=self.build_acquisition_func(),
+        )
+        self._initialized = True
+        if seed_rng:
+            self.seed_rng(self.seed)
 
     @property
     def space(self) -> Space:
         """Space of the optimizer"""
-        return self._space
-
-    @space.setter
-    def space(self, space: Space) -> None:
-        """Setter of optimizer's space.
-
-        Side-effect: Will initialize optimizer.
-        """
-        self._original = self._space
-        self._space = space
-        self._initialize()
+        return super().space
 
     @abstractmethod
-    def _initialize_model(self) -> None:
+    def build_model(self) -> ModelType:
         """Build model and register it as ``self.model``"""
         raise NotImplementedError()
 
@@ -268,54 +288,39 @@ class RoBO(BaseAlgorithm, ABC):
         assert self.model is not None
         return build_acquisition_func(self.acquisition_func, self.model)
 
-    def _initialize(self) -> None:
-        """Initialize the model and optimizer once the space is transformed"""
-        self._initialize_model()
-        self.robo = build_optimizer(
-            self.model,
-            maximizer=self.maximizer,
-            acquisition_func=self.build_acquisition_func(),
-        )
-
-        self.seed_rng(self.seed)
-
     @property
     def XY(self) -> tuple[np.ndarray, np.ndarray]:
         """ Matrix containing trial points and their results. """
-        trials_and_results: list[tuple[Trial, dict]] = (
-            list(self._trials_info.values()) + self._bo_duplicates
-        )
         # Keep only the trials that have a result.
-        trials_with_a_result = [
-            (trial, result)
-            for trial, result in trials_and_results
-            if result is not None
+        trials_and_objectives: list[tuple[Trial, float]] = [
+            (trial, trial.objective.value)
+            for trial in self.registry
+            if trial.objective is not None
         ]
         x: list[tuple] = []
         y: list[float] = []
-        for trial, result in trials_with_a_result:
+        for trial, objective in trials_and_objectives:
             x.append(trial_to_tuple(trial, space=self.space))
-            y.append(result["objective"])
+            y.append(objective)
         return np.array(x), np.array(y)
 
-    def seed_rng(self, seed: int) -> None:
+    def seed_rng(self, seed: int | Sequence[int] | None) -> None:
         """Seed the state of the random number generator.
 
         Parameters
         ----------
-        seed: int
+        seed: int or sequence of int or None
             Integer seed for the random number generator.
 
         """
         self.rng = numpy.random.RandomState(seed)
 
         rand_nums = self.rng.randint(1, int(10e8), 4)
-
-        if self.robo:
+        if not self._initialized:
+            # Being called from within `_initialize`, so we pass `seed_rng` to avoid recursion.
+            self._initialize(seed_rng=False)
             self.robo.rng = numpy.random.RandomState(rand_nums[0])
             self.robo.maximize_func.rng.seed(rand_nums[1])
-
-        if self.model:
             self.model.seed(rand_nums[2])
 
         numpy.random.seed(rand_nums[3])
@@ -345,6 +350,8 @@ class RoBO(BaseAlgorithm, ABC):
 
         """
         super().set_state(state_dict)
+        if not self._initialized:
+            self._initialize()
 
         self.rng.set_state(state_dict["rng_state"])
         numpy.random.set_state(state_dict["global_numpy_rng_state"])
@@ -356,16 +363,23 @@ class RoBO(BaseAlgorithm, ABC):
         self.model.set_state(state_dict["model"])
         self._bo_duplicates = state_dict["bo_duplicates"]
 
+    def observe(self, trials: list[Trial]) -> None:
+        if not self._initialized:
+            self._initialize()
+        return super().observe(trials)
+
     def suggest(self, num: int) -> list[Trial] | None:
         """Suggest a `num`ber of new sets of parameters.
 
         Perform a step towards negative gradient and suggest that point.
 
         """
+        if not self._initialized:
+            self._initialize()
         num = min(num, max(self.n_initial_points - self.n_suggested, 1))
 
-        samples = []
-        candidates = []
+        samples: list[Trial] = []
+        candidates: list[Trial] = []
         while len(samples) < num:
             if candidates:
                 candidate = candidates.pop(0)
@@ -381,7 +395,6 @@ class RoBO(BaseAlgorithm, ABC):
                 break
         assert all(isinstance(sample, Trial) for sample in samples), samples
         return samples
-        return [tuple_to_trial(sample, self.space) for sample in samples]
 
     def _suggest(
         self, num: int, function: Callable[[int], Iterable[Trial]]
@@ -399,9 +412,6 @@ class RoBO(BaseAlgorithm, ABC):
                     return trials
 
             attempts += 1
-
-            # print(attempts)
-
         return trials
 
     def _suggest_random(self, num: int) -> list[Trial]:
@@ -420,22 +430,21 @@ class RoBO(BaseAlgorithm, ABC):
             X, y = self.XY
             point = list(self.robo.choose_next(X, y))
             trial = tuple_to_trial(point, self.space)
-            # If already suggested, give corresponding result to BO to sample another point
-            if self.has_suggested(trial):
-                result = self._trials_info[self.get_id(trial)][1]
-                if result is None:
-                    results = []
-                    for _, other_result in self._trials_info.values():
-                        if other_result is not None:
-                            results.append(other_result["objective"])
-                    result = Trial.Result(objective=numpy.array(results).mean())
-
-                self._bo_duplicates.append((trial, result))
-
-                # self.optimizer.tell([point], [result])
-                return []
-
             return [trial]
+            # TODO: Double-check, but I don't think this kind of thing is needed anymore.
+            # # If already suggested, give corresponding result to BO to sample another point
+            # if self.has_suggested(trial):
+            #     existing_trial = self.registry.get_existing(trial)
+            #     result = existing_trial.objective
+            #     if result is None:
+            #         results = []
+            #         for _, other_result in self._trials_info.values():
+            #             if other_result is not None:
+            #                 results.append(other_result["objective"])
+            #         result = Trial.Result(objective=numpy.array(results).mean())
+            #     self._bo_duplicates.append((trial, result))
+            #     # self.optimizer.tell([point], [result])
+            #     return []
 
         return self._suggest(num, suggest_bo)
 
@@ -447,10 +456,4 @@ class RoBO(BaseAlgorithm, ABC):
         By default, the cardinality of the specified search space will be used to check
         if all possible sets of parameters has been tried.
         """
-        if self.n_suggested >= self._original.cardinality:
-            return True
-
-        if self.n_suggested >= getattr(self, "max_trials", float("inf")):
-            return True
-
-        return False
+        return super().is_done

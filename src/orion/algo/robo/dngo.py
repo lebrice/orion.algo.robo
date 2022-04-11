@@ -1,11 +1,23 @@
 """
 Wrapper for RoBO with DNGO
 """
+from __future__ import annotations
+
+from typing import Sequence
 import numpy
 import torch
 from pybnn.dngo import DNGO
+from typing_extensions import Literal
 
-from orion.algo.robo.base import RoBO, build_bounds, build_kernel, infer_n_hypers
+from orion.algo.robo.base import (
+    RoBO,
+    build_bounds,
+    build_kernel,
+    infer_n_hypers,
+    MaximizerName,
+    AcquisitionFnName,
+)
+from orion.algo.space import Space
 
 
 class RoBO_DNGO(RoBO):
@@ -62,36 +74,34 @@ class RoBO_DNGO(RoBO):
 
     def __init__(
         self,
-        space,
-        seed=0,
-        n_initial_points=20,
-        maximizer="random",
-        acquisition_func="log_ei",
-        normalize_input=True,
-        normalize_output=False,
-        chain_length=2000,
-        burnin_steps=2000,
-        batch_size=10,
-        num_epochs=500,
-        learning_rate=1e-2,
-        adapt_epoch=5000,
+        space: Space,
+        seed: int | Sequence[int] | None = 0,
+        n_initial_points: int = 20,
+        maximizer: MaximizerName = "random",
+        acquisition_func: AcquisitionFnName = "log_ei",
+        normalize_input: bool = True,
+        normalize_output: bool = False,
+        chain_length: int = 2000,
+        burnin_steps: int = 2000,
+        batch_size: int = 10,
+        num_epochs: int = 500,
+        learning_rate: float = 1e-2,
+        adapt_epoch: int = 5000,
     ):
 
-        super().__init__(
-            space,
-            seed=seed,
-            n_initial_points=n_initial_points,
-            maximizer=maximizer,
-            acquisition_func=acquisition_func,
-            normalize_input=normalize_input,
-            normalize_output=normalize_output,
-            chain_length=chain_length,
-            burnin_steps=burnin_steps,
-            batch_size=batch_size,
-            num_epochs=num_epochs,
-            learning_rate=learning_rate,
-            adapt_epoch=adapt_epoch,
-        )
+        super().__init__(space=space)
+        self.seed = seed
+        self.n_initial_points = n_initial_points
+        self.maximizer = maximizer
+        self.acquisition_func = acquisition_func
+        self.normalize_input = normalize_input
+        self.normalize_output = normalize_output
+        self.chain_length = chain_length
+        self.burnin_steps = burnin_steps
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
+        self.learning_rate = learning_rate
+        self.adapt_epoch = adapt_epoch
 
     def _initialize_model(self):
         lower, upper = build_bounds(self.space)
