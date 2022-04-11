@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Iterable,
     Literal,
     Optional,
@@ -194,9 +195,11 @@ class WrappedRoboModel(BaseModel, ABC):
     def seed(self, seed: int | Sequence[int] | None) -> None:
         ...
 
+    @abstractmethod
     def state_dict(self) -> dict:
         ...
 
+    @abstractmethod
     def set_state(self, state_dict: dict) -> None:
         ...
 
@@ -228,10 +231,6 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
         Defaults to 'random'
     acquisition_func: str
         Name of the acquisition function. Can be one of ``['ei', 'log_ei', 'pi', 'lcb']``.
-    **kwargs:
-        Arguments specific to each RoBO algorithms. These will be registered as part of
-        the algorithm's configuration.
-
     """
 
     requires_type: ClassVar[str] = "real"
@@ -447,13 +446,3 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
             #     return []
 
         return self._suggest(num, suggest_bo)
-
-    @property
-    def is_done(self) -> bool:
-        """Whether the algorithm is done and will not make further suggestions.
-
-        Return True, if an algorithm holds that there can be no further improvement.
-        By default, the cardinality of the specified search space will be used to check
-        if all possible sets of parameters has been tried.
-        """
-        return super().is_done

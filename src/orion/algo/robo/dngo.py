@@ -16,11 +16,92 @@ from orion.algo.robo.base import (
     infer_n_hypers,
     MaximizerName,
     AcquisitionFnName,
+    WrappedRoboModel,
 )
 from orion.algo.space import Space
 
 
-class RoBO_DNGO(RoBO):
+class OrionDNGOWrapper(DNGO, WrappedRoboModel):
+    """
+    Wrapper for PyBNN's DNGO model
+
+    Parameters
+    ----------
+    batch_size: int
+        Batch size for training the neural network
+    num_epochs: int
+        Number of epochs for training
+    learning_rate: float
+        Initial learning rate for Adam
+    adapt_epoch: int
+        Defines after how many epochs the learning rate will be decayed by a factor 10
+    n_units_1: int
+        Number of units in layer 1
+    n_units_2: int
+        Number of units in layer 2
+    n_units_3: int
+        Number of units in layer 3
+    alpha: float
+        Hyperparameter of the Bayesian linear regression
+    beta: float
+        Hyperparameter of the Bayesian linear regression
+    prior: Prior object
+        Prior for alpa and beta. If set to None the default prior is used
+    do_mcmc: bool
+        If set to true different values for alpha and beta are sampled via MCMC from the marginal
+        log likelihood. Otherwise the marginal log likehood is optimized with scipy fmin function.
+    n_hypers : int
+        Number of samples for alpha and beta
+    chain_length : int
+        The chain length of the MCMC sampler
+    burnin_steps: int
+        The number of burnin steps before the sampling procedure starts
+    normalize_output : bool
+        Zero mean unit variance normalization of the output values
+    normalize_input : bool
+        Zero mean unit variance normalization of the input values
+    rng: np.random.RandomState
+        Random number generator
+
+    """
+
+    def __init__(self, lower, upper, **kwargs):
+
+        super().__init__(**kwargs)
+        self.lower = lower
+        self.upper = upper
+
+    def set_state(self, state_dict):
+        """Restore the state of the optimizer"""
+        torch.random.set_rng_state(state_dict["torch"])
+        self.rng.set_state(state_dict["rng"])
+        self.prior.rng.set_state(state_dict["prior_rng"])
+
+    def state_dict(self):
+        """Return the current state of the optimizer so that it can be restored"""
+        return {
+            "torch": torch.random.get_rng_state(),
+            "rng": self.rng.get_state(),
+            "prior_rng": self.prior.rng.get_state(),
+        }
+
+    def seed(self, seed):
+        """Seed all internal RNGs"""
+        self.rng = numpy.random.RandomState(seed)
+        rand_nums = self.rng.randint(1, int(10e8), 2)
+        pytorch_seed = rand_nums[0]
+
+        if torch.cuda.is_available():
+            torch.backends.cudnn.benchmark = False
+            torch.cuda.manual_seed_all(pytorch_seed)
+            torch.backends.cudnn.deterministic = True
+
+        torch.manual_seed(pytorch_seed)
+
+        self.prior.rng.seed(rand_nums[1])
+
+
+class RoBO_DNGO(RoBO[OrionDNGOWrapper]):
     """
     Wrapper for RoBO with DNGO
 
@@ -89,7 +170,13 @@ class RoBO_DNGO(RoBO):
         adapt_epoch: int = 5000,
     ):
 
-        super().__init__(space=space)
+        super().__init__(
+            space=space,
+            seed=seed,
+            n_initial_points=n_initial_points,
+            maximizer=maximizer,
+            acquisition_func=acquisition_func,
+        )
         self.seed = seed
         self.n_initial_points = n_initial_points
         self.maximizer = maximizer
@@ -103,10 +190,10 @@ class RoBO_DNGO(RoBO):
         self.learning_rate = learning_rate
         self.adapt_epoch = adapt_epoch
 
-    def _initialize_model(self):
+    def build_model(self) -> OrionDNGOWrapper:
         lower, upper = build_bounds(self.space)
         n_hypers = infer_n_hypers(build_kernel(lower, upper))
-        self.model = OrionDNGOWrapper(
+        return OrionDNGOWrapper(
             batch_size=self.batch_size,
             num_epochs=self.num_epochs,
             learning_rate=self.learning_rate,
@@ -128,82 +215,3 @@ class RoBO_DNGO(RoBO):
             upper=upper,
         )
 
-
-class OrionDNGOWrapper(DNGO):
-    """
-    Wrapper for PyBNN's DNGO model
-
-    Parameters
-    ----------
-    batch_size: int
-        Batch size for training the neural network
-    num_epochs: int
-        Number of epochs for training
-    learning_rate: float
-        Initial learning rate for Adam
-    adapt_epoch: int
-        Defines after how many epochs the learning rate will be decayed by a factor 10
-    n_units_1: int
-        Number of units in layer 1
-    n_units_2: int
-        Number of units in layer 2
-    n_units_3: int
-        Number of units in layer 3
-    alpha: float
-        Hyperparameter of the Bayesian linear regression
-    beta: float
-        Hyperparameter of the Bayesian linear regression
-    prior: Prior object
-        Prior for alpa and beta. If set to None the default prior is used
-    do_mcmc: bool
-        If set to true different values for alpha and beta are sampled via MCMC from the marginal
-        log likelihood. Otherwise the marginal log likehood is optimized with scipy fmin function.
-    n_hypers : int
-        Number of samples for alpha and beta
-    chain_length : int
-        The chain length of the MCMC sampler
-    burnin_steps: int
-        The number of burnin steps before the sampling procedure starts
-    normalize_output : bool
-        Zero mean unit variance normalization of the output values
-    normalize_input : bool
-        Zero mean unit variance normalization of the input values
-    rng: np.random.RandomState
-        Random number generator
-
-    """
-
-    def __init__(self, lower, upper, **kwargs):
-
-        super().__init__(**kwargs)
-        self.lower = lower
-        self.upper = upper
-
-    def set_state(self, state_dict):
-        """Restore the state of the optimizer"""
-        torch.random.set_rng_state(state_dict["torch"])
-        self.rng.set_state(state_dict["rng"])
-        self.prior.rng.set_state(state_dict["prior_rng"])
-
-    def state_dict(self):
-        """Return the current state of the optimizer so that it can be restored"""
-        return {
-            "torch": torch.random.get_rng_state(),
-            "rng": self.rng.get_state(),
-            "prior_rng": self.prior.rng.get_state(),
-        }
-
-    def seed(self, seed):
-        """Seed all internal RNGs"""
-        self.rng = numpy.random.RandomState(seed)
-        rand_nums = self.rng.randint(1, 10e8, 2)
-        pytorch_seed = rand_nums[0]
-
-        if torch.cuda.is_available():
-            torch.backends.cudnn.benchmark = False
-            torch.cuda.manual_seed_all(pytorch_seed)
-            torch.backends.cudnn.deterministic = True
-
-        torch.manual_seed(pytorch_seed)
-
-        self.prior.rng.seed(rand_nums[1])
