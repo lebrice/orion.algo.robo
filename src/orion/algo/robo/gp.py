@@ -59,7 +59,7 @@ class RoBO_GP(RoBO):
         normalize_output=False,
     ):
 
-        super(RoBO_GP, self).__init__(
+        super().__init__(
             space,
             maximizer=maximizer,
             acquisition_func=acquisition_func,
@@ -138,7 +138,7 @@ class RoBO_GP_MCMC(RoBO):
         burnin_steps=2000,
     ):
 
-        super(RoBO_GP_MCMC, self).__init__(
+        super().__init__(
             space,
             seed=seed,
             n_initial_points=n_initial_points,
@@ -152,7 +152,7 @@ class RoBO_GP_MCMC(RoBO):
 
     def build_acquisition_func(self):
         """Build a marginalized acquisition function with MCMC."""
-        return MarginalizationGPMCMC(super(RoBO_GP_MCMC, self).build_acquisition_func())
+        return MarginalizationGPMCMC(super().build_acquisition_func())
 
     def _initialize_model(self):
         lower, upper = build_bounds(self.space)
