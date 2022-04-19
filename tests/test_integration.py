@@ -233,7 +233,7 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
             sampling_method="sgld",
             use_double_precision=False,
             n_initial_points=N_INIT + 1,
-            **train_config
+            **train_config,
         )
 
         # Adapt to bnn.train interface
@@ -258,4 +258,3 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         algo.suggest(1)
         assert spy.call_count > 0
         assert spy.call_args[1] == train_config
-

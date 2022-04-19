@@ -289,7 +289,7 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
 
     @property
     def XY(self) -> tuple[np.ndarray, np.ndarray]:
-        """ Matrix containing trial points and their results. """
+        """Matrix containing trial points and their results."""
         # Keep only the trials that have a result.
         trials_and_objectives: list[tuple[Trial, float]] = [
             (trial, trial.objective.value)

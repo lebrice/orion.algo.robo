@@ -215,4 +215,3 @@ class RoBO_DNGO(RoBO[OrionDNGOWrapper]):
             lower=lower,
             upper=upper,
         )
-
