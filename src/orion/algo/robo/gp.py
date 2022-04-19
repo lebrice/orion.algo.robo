@@ -2,21 +2,24 @@
 Wrapper for RoBO with GP (and MCMC)
 """
 from __future__ import annotations
+
 from typing import Sequence
+
 import numpy
+from orion.algo.space import Space
 from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
 from robo.models.gaussian_process import GaussianProcess
 from robo.models.gaussian_process_mcmc import GaussianProcessMCMC
-from orion.algo.space import Space
+
 from orion.algo.robo.base import (
+    AcquisitionFnName,
+    MaximizerName,
     RoBO,
+    WrappedRoboModel,
     build_bounds,
     build_kernel,
     build_prior,
     infer_n_hypers,
-    AcquisitionFnName,
-    MaximizerName,
-    WrappedRoboModel,
 )
 
 

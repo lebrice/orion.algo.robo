@@ -4,21 +4,22 @@ Wrapper for RoBO with DNGO
 from __future__ import annotations
 
 from typing import Sequence
+
 import numpy
 import torch
+from orion.algo.space import Space
 from pybnn.dngo import DNGO
 from typing_extensions import Literal
 
 from orion.algo.robo.base import (
+    AcquisitionFnName,
+    MaximizerName,
     RoBO,
+    WrappedRoboModel,
     build_bounds,
     build_kernel,
     infer_n_hypers,
-    MaximizerName,
-    AcquisitionFnName,
-    WrappedRoboModel,
 )
-from orion.algo.space import Space
 
 
 class OrionDNGOWrapper(DNGO, WrappedRoboModel):

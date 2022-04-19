@@ -8,11 +8,11 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    Generic,
     Iterable,
     Literal,
     Optional,
     Sequence,
-    Generic,
     TypeVar,
 )
 
@@ -24,6 +24,7 @@ from orion.algo.base import BaseAlgorithm
 from orion.algo.space import Space
 from orion.core.utils.format_trials import trial_to_tuple, tuple_to_trial
 from orion.core.worker.trial import Trial
+from pybnn.base_model import BaseModel as PyBnnBaseModel
 from robo.acquisition_functions.base_acquisition import BaseAcquisitionFunction
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
@@ -34,7 +35,6 @@ from robo.maximizers.differential_evolution import DifferentialEvolution
 from robo.maximizers.random_sampling import RandomSampling
 from robo.maximizers.scipy_optimizer import SciPyOptimizer
 from robo.models.base_model import BaseModel
-from pybnn.base_model import BaseModel as PyBnnBaseModel
 from robo.priors.default_priors import DefaultPrior
 from robo.solver.bayesian_optimization import BayesianOptimization
 
