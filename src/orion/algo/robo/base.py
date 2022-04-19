@@ -327,8 +327,9 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
     @property
     def state_dict(self) -> dict:
         """Return a state dict that can be used to reset the state of the algorithm."""
+        if not self._initialized:
+            self._initialize()
         s_dict: dict[str, Any] = super().state_dict
-
         s_dict.update(
             {
                 "rng_state": self.rng.get_state(),
@@ -348,10 +349,10 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
         :param state_dict: Dictionary representing state of an algorithm
 
         """
-        super().set_state(state_dict)
         if not self._initialized:
             self._initialize()
 
+        super().set_state(state_dict)
         self.rng.set_state(state_dict["rng_state"])
         numpy.random.set_state(state_dict["global_numpy_rng_state"])
         if self.robo is None or self.model is None:
