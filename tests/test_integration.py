@@ -3,13 +3,20 @@
 """Perform integration tests for `orion.algo.robo`."""
 from __future__ import annotations
 
+from abc import ABC
 import copy
 import itertools
 from typing import ClassVar, Type
 
 from orion.core.utils.format_trials import tuple_to_trial
 from orion.core.worker.trial import Trial
-from orion.testing.algo import BaseAlgoTests, TestPhase
+from orion.testing.algo import BaseAlgoTests, TestPhase, first_phase_only
+from orion.algo.robo.base import RoBO
+from orion.algo.robo.gp import RoBO_GP, RoBO_GP_MCMC
+from orion.algo.robo.bohamiann import RoBO_BOHAMIANN
+from orion.algo.robo.randomforest import RoBO_RandomForest
+from orion.algo.robo.dngo import RoBO_DNGO
+
 
 N_INIT = 10
 
@@ -20,26 +27,51 @@ def modified_config(config, **kwargs):
     return modified
 
 
-class BaseRoBOTests(BaseAlgoTests):
-    def test_suggest_init(self, mocker):
-        algo = self.create_algo()
-        spy = self.spy_phase(mocker, 0, algo, "space.sample")
-        trials = algo.suggest(1000)
-        assert trials is not None
-        assert len(trials) == N_INIT
+class BaseRoBOTests(BaseAlgoTests, ABC):
+    # To be overwritten by subclasses:
+    algo_type: ClassVar[type[RoBO]] = RoBO
 
-    def test_suggest_init_missing(self, mocker):
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        cls.algo_name = cls.algo_type.__name__.lower()
+
+    @classmethod
+    def duration_of(cls, phase: TestPhase) -> int:
+        phase_index = cls.phases.index(phase)
+        end_n_trials = (
+            cls.phases[phase_index + 1].n_trials
+            if phase_index + 1 < len(cls.phases)
+            else cls.max_trials
+        )
+        start_n_trials = phase.n_trials
+        return end_n_trials - start_n_trials
+
+    def test_suggest_init(self, phase: TestPhase):
         algo = self.create_algo()
+        trials_in_phase = self.duration_of(phase)
+        trials = algo.suggest(trials_in_phase)
+        assert len(trials) == trials_in_phase
+
+    def test_suggest_init_missing(self, phase: TestPhase):
+        algo = self.create_algo()
+
+        trials_in_phase = self.duration_of(phase)
         missing = 3
-        spy = self.spy_phase(mocker, N_INIT - missing, algo, "space.sample")
+
+        self.force_observe(algo=algo, num=trials_in_phase - missing)
+        # NOTE: Why ask for 1000? What's the point? Couldn't we just ask for slightly more than
+        # max_trials?
         trials = algo.suggest(1000)
-        assert trials is not None
+
         assert len(trials) == missing
 
-    def test_suggest_init_overflow(self, mocker):
+    @first_phase_only
+    def test_suggest_init_overflow(self, phase: TestPhase, mocker):
         algo = self.create_algo()
-        spy = self.spy_phase(mocker, N_INIT - 1, algo, "space.sample")
+        n_init = self.duration_of(phase)
+        self.force_observe(algo=algo, num=n_init - 1)
         # Now reaching N_INIT
+        spy = mocker.spy(algo.algorithm.space, "sample")
         trials = algo.suggest(1000)
         assert trials is not None
         assert len(trials) == 1
@@ -52,26 +84,24 @@ class BaseRoBOTests(BaseAlgoTests):
         # Verify point was sampled randomly, not using BO
         assert spy.call_count == 2
 
-    def test_suggest_n(self, mocker, num, attr):
+    def test_suggest_n(self, phase: TestPhase):
         algo = self.create_algo()
-        spy = self.spy_phase(mocker, num, algo, attr)
         trials = algo.suggest(5)
         assert trials is not None
-        if num == 0:
+        if phase.n_trials == 0:
             assert len(trials) == 5
         else:
-            assert len(trials) == 1
+            assert len(trials) == 1  # TODO: HUH? Why is this supposed to be the case?
 
     def test_is_done_cardinality(self):
         # TODO: Support correctly loguniform(discrete=True)
         #       See https://github.com/Epistimio/orion/issues/566
-        space = self.update_space(
-            {
-                "x": "uniform(0, 4, discrete=True)",
-                "y": "choices(['a', 'b', 'c'])",
-                "z": "uniform(1, 6, discrete=True)",
-            }
-        )
+        space = {
+            "x": "uniform(0, 4, discrete=True)",
+            "y": "choices(['a', 'b', 'c'])",
+            "z": "uniform(1, 6, discrete=True)",
+        }
+
         space = self.create_space(space)
         assert space.cardinality == 5 * 3 * 6
 
@@ -91,8 +121,7 @@ class BaseRoBOTests(BaseAlgoTests):
 
 
 class TestRoBO_GP(BaseRoBOTests):
-
-    algo_name = "robo_gp"
+    algo_type: ClassVar[type[RoBO]] = RoBO_GP
     config = {
         "maximizer": "random",
         "acquisition_func": "log_ei",
@@ -104,12 +133,12 @@ class TestRoBO_GP(BaseRoBOTests):
 
     phases: ClassVar[list[TestPhase]] = [
         TestPhase("random", 0, "space.sample"),
-        TestPhase("gp", N_INIT + 1, "robo.choose_next"),
+        TestPhase("gp", N_INIT, "robo.choose_next"),
     ]
 
 
 class TestRoBO_GP_MCMC(BaseRoBOTests):
-    algo_name = "robo_gp_mcmc"
+    algo_type: ClassVar[type[RoBO]] = RoBO_GP_MCMC
     config = {
         "maximizer": "random",
         "acquisition_func": "log_ei",
@@ -121,12 +150,13 @@ class TestRoBO_GP_MCMC(BaseRoBOTests):
         "seed": 1234,
     }
     phases: ClassVar[list[TestPhase]] = [
-        TestPhase("gp_mcmc", N_INIT + 1, "robo.choose_next")
+        TestPhase("random", 0, "space.sample"),
+        TestPhase("gp_mcmc", N_INIT, "robo.choose_next"),
     ]
 
 
 class TestRoBO_RandomForest(BaseRoBOTests):
-    algo_name = "robo_randomforest"
+    algo_type: ClassVar[type[RoBO]] = RoBO_RandomForest
     config = {
         "maximizer": "random",
         "acquisition_func": "log_ei",
@@ -139,12 +169,13 @@ class TestRoBO_RandomForest(BaseRoBOTests):
         "seed": 1234,
     }
     phases: ClassVar[list[TestPhase]] = [
-        TestPhase("randomforest", N_INIT + 1, "robo.choose_next")
+        TestPhase("random", 0, "space.sample"),
+        TestPhase("randomforest", N_INIT, "robo.choose_next"),
     ]
 
 
 class TestRoBO_DNGO(TestRoBO_GP):
-    algo_name = "robo_dngo"
+    algo_type: ClassVar[type[RoBO]] = RoBO_DNGO
 
     config = {
         "maximizer": "random",
@@ -161,7 +192,8 @@ class TestRoBO_DNGO(TestRoBO_GP):
         "seed": 1234,
     }
     phases: ClassVar[list[TestPhase]] = [
-        TestPhase("dngo", N_INIT + 1, "robo.choose_next")
+        TestPhase("random", 0, "space.sample"),
+        TestPhase("dngo", N_INIT, "robo.choose_next"),
     ]
 
     def test_configuration_to_model(self, mocker):
@@ -192,7 +224,7 @@ class TestRoBO_DNGO(TestRoBO_GP):
 
 
 class TestRoBO_BOHAMIANN(BaseRoBOTests):
-    algo_name = "robo_bohamiann"
+    algo_type: ClassVar[type[RoBO]] = RoBO_BOHAMIANN
     config = {
         "maximizer": "random",
         "acquisition_func": "log_ei",
@@ -212,10 +244,11 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         "seed": 1234,
     }
     phases: ClassVar[list[TestPhase]] = [
-        TestPhase("bohamiann", N_INIT + 1, "robo.choose_next")
+        TestPhase("random", 0, "space.sample"),
+        TestPhase("bohamiann", N_INIT, "robo.choose_next"),
     ]
 
-    def test_configuration_to_model(self, mocker):
+    def test_configuration_to_model(self):
 
         train_config = dict(
             burnin_steps=self.config["burnin_steps"] * 2,
