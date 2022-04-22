@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC
 import copy
 import itertools
-from typing import ClassVar, Type
+from typing import ClassVar, Type, TypeVar
 
 from orion.core.utils.format_trials import tuple_to_trial
 from orion.core.worker.trial import Trial
@@ -27,7 +27,10 @@ def modified_config(config, **kwargs):
     return modified
 
 
-class BaseRoBOTests(BaseAlgoTests, ABC):
+RoboAlgoType = TypeVar("RoboAlgoType", bound=RoBO)
+
+
+class BaseRoBOTests(BaseAlgoTests[RoboAlgoType]):
     # To be overwritten by subclasses:
     algo_type: ClassVar[type[RoBO]] = RoBO
 
@@ -35,63 +38,45 @@ class BaseRoBOTests(BaseAlgoTests, ABC):
         super().__init_subclass__()
         cls.algo_name = cls.algo_type.__name__.lower()
 
-    @classmethod
-    def duration_of(cls, phase: TestPhase) -> int:
-        phase_index = cls.phases.index(phase)
-        end_n_trials = (
-            cls.phases[phase_index + 1].n_trials
-            if phase_index + 1 < len(cls.phases)
-            else cls.max_trials
-        )
-        start_n_trials = phase.n_trials
-        return end_n_trials - start_n_trials
-
     def test_suggest_init(self, phase: TestPhase):
         algo = self.create_algo()
-        trials_in_phase = self.duration_of(phase)
-        trials = algo.suggest(trials_in_phase)
-        assert len(trials) == trials_in_phase
+        trials = algo.suggest(num=phase.length)
+        assert len(trials) == phase.length
 
+    @first_phase_only
     def test_suggest_init_missing(self, phase: TestPhase):
+        """Test that when in the first phase, the algorithm"""
         algo = self.create_algo()
-
-        trials_in_phase = self.duration_of(phase)
         missing = 3
 
-        self.force_observe(algo=algo, num=trials_in_phase - missing)
-        # NOTE: Why ask for 1000? What's the point? Couldn't we just ask for slightly more than
-        # max_trials?
-        trials = algo.suggest(1000)
-
+        self.force_observe(algo=algo, num=phase.length - missing)
+        # NOTE: Ask for a large number of additional trials, which shouldn't be given back by the
+        # algo.
+        trials = algo.suggest(self.max_trials)
         assert len(trials) == missing
 
     @first_phase_only
-    def test_suggest_init_overflow(self, phase: TestPhase, mocker):
+    def test_suggest_init_overflow(self, mocker, first_phase: TestPhase):
         algo = self.create_algo()
-        n_init = self.duration_of(phase)
-        self.force_observe(algo=algo, num=n_init - 1)
-        # Now reaching N_INIT
-        spy = mocker.spy(algo.algorithm.space, "sample")
-        trials = algo.suggest(1000)
-        assert trials is not None
-        assert len(trials) == 1
-        # Verify point was sampled randomly, not using BO
-        assert spy.call_count == 1
-        # Overflow above N_INIT
-        trials = algo.suggest(1000)
-        assert trials is not None
-        assert len(trials) == 1
-        # Verify point was sampled randomly, not using BO
-        assert spy.call_count == 2
 
-    def test_suggest_n(self, phase: TestPhase):
-        algo = self.create_algo()
-        trials = algo.suggest(5)
+        self.force_observe(algo=algo, num=first_phase.length - 1)
+        spy = mocker.spy(algo.algorithm.space, "sample")
+        # Now reaching end of the first phase, by asking more trials than the length of the
+        # first phase.
+        trials = algo.suggest(first_phase.length * 3)
         assert trials is not None
-        if phase.n_trials == 0:
-            assert len(trials) == 5
-        else:
-            assert len(trials) == 1  # TODO: HUH? Why is this supposed to be the case?
+        assert len(trials) == 1
+
+        # Verify trial was sampled randomly, not using BO
+        assert spy.call_count == 1
+
+        # Next call to suggest should still be in first phase, since we still haven't observed that
+        # missing random trial.
+        trials = algo.suggest(first_phase.length * 3)
+        assert trials is not None
+        assert len(trials) == 1
+        # Verify trial was sampled randomly, not using BO
+        assert spy.call_count == 2
 
     def test_is_done_cardinality(self):
         # TODO: Support correctly loguniform(discrete=True)
@@ -120,7 +105,7 @@ class BaseRoBOTests(BaseAlgoTests, ABC):
         assert algo.is_done
 
 
-class TestRoBO_GP(BaseRoBOTests):
+class TestRoBO_GP(BaseRoBOTests[RoBO_GP]):
     algo_type: ClassVar[type[RoBO]] = RoBO_GP
     config = {
         "maximizer": "random",
@@ -137,7 +122,7 @@ class TestRoBO_GP(BaseRoBOTests):
     ]
 
 
-class TestRoBO_GP_MCMC(BaseRoBOTests):
+class TestRoBO_GP_MCMC(BaseRoBOTests[RoBO_GP_MCMC]):
     algo_type: ClassVar[type[RoBO]] = RoBO_GP_MCMC
     config = {
         "maximizer": "random",
@@ -155,7 +140,7 @@ class TestRoBO_GP_MCMC(BaseRoBOTests):
     ]
 
 
-class TestRoBO_RandomForest(BaseRoBOTests):
+class TestRoBO_RandomForest(BaseRoBOTests[RoBO_RandomForest]):
     algo_type: ClassVar[type[RoBO]] = RoBO_RandomForest
     config = {
         "maximizer": "random",
@@ -174,7 +159,7 @@ class TestRoBO_RandomForest(BaseRoBOTests):
     ]
 
 
-class TestRoBO_DNGO(TestRoBO_GP):
+class TestRoBO_DNGO(BaseRoBOTests[RoBO_DNGO]):
     algo_type: ClassVar[type[RoBO]] = RoBO_DNGO
 
     config = {
@@ -188,22 +173,27 @@ class TestRoBO_DNGO(TestRoBO_GP):
         "batch_size": 10,
         "num_epochs": 10,
         "adapt_epoch": 20,
-        "n_initial_points": N_INIT,
+        "n_initial_points": N_INIT // 2,
         "seed": 1234,
     }
     phases: ClassVar[list[TestPhase]] = [
         TestPhase("random", 0, "space.sample"),
-        TestPhase("dngo", N_INIT, "robo.choose_next"),
+        TestPhase("dngo", N_INIT // 2, "robo.choose_next"),
     ]
 
-    def test_configuration_to_model(self, mocker):
-
+    def test_configuration_to_model(self):
+        """Test that the values passed in the configuration make their way to the model."""
         train_config = dict(
-            chain_length=self.config["chain_length"] * 2,
-            burnin_steps=self.config["burnin_steps"] * 2,
-            num_epochs=self.config["num_epochs"] * 2,
-            adapt_epoch=self.config["adapt_epoch"] * 2,
-            learning_rate=self.config["learning_rate"] * 2,
+            **{
+                key: self.config[key] * 2
+                for key in [
+                    "chain_length",
+                    "burnin_steps",
+                    "num_epochs",
+                    "adapt_epoch",
+                    "learning_rate",
+                ]
+            },
             batch_size=self.config["batch_size"] + 1,
         )
 
@@ -211,7 +201,8 @@ class TestRoBO_DNGO(TestRoBO_GP):
             self.config, n_initial_points=N_INIT + 1, **train_config
         )
 
-        algo = self.create_algo(tmp_config)
+        algo = self.create_algo(config=tmp_config)
+        algo.algorithm._initialize()
 
         model = algo.algorithm.model
 
@@ -223,7 +214,7 @@ class TestRoBO_DNGO(TestRoBO_GP):
         assert model.batch_size == tmp_config["batch_size"]
 
 
-class TestRoBO_BOHAMIANN(BaseRoBOTests):
+class TestRoBO_BOHAMIANN(BaseRoBOTests[RoBO_BOHAMIANN]):
     algo_type: ClassVar[type[RoBO]] = RoBO_BOHAMIANN
     config = {
         "maximizer": "random",
@@ -248,7 +239,7 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         TestPhase("bohamiann", N_INIT, "robo.choose_next"),
     ]
 
-    def test_configuration_to_model(self):
+    def test_configuration_to_model(self, mocker):
 
         train_config = dict(
             burnin_steps=self.config["burnin_steps"] * 2,
@@ -278,16 +269,14 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests):
         train_config["continue_training"] = False
 
         algo = self.create_algo(tmp_config)
+        algo.algorithm._initialize()
 
-        assert algo.algorithm.model.bnn.sampling_method == tmp_config["sampling_method"]
-        assert (
-            algo.algorithm.model.bnn.use_double_precision
-            == tmp_config["use_double_precision"]
-        )
+        bnn = algo.algorithm.model.bnn
+        assert bnn.sampling_method == tmp_config["sampling_method"]
+        assert bnn.use_double_precision == tmp_config["use_double_precision"]
 
-        spy = self.spy_phase(
-            mocker, tmp_config["n_initial_points"] + 1, algo, "model.bnn.train"
-        )
+        spy = mocker.spy(bnn, "train")
+        self.force_observe(algo=algo, num=tmp_config["n_initial_points"] + 1)
         algo.suggest(1)
         assert spy.call_count > 0
         assert spy.call_args[1] == train_config
