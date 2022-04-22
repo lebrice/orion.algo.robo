@@ -50,6 +50,8 @@ setup_args = dict(
         "Jinja2",
         "tqdm",
         "robo @ git+https://github.com/automl/RoBO.git@91366b12a1a3deb8e80dd08599e0eaf4df28adc1",
+        # DNGO depends on older versions (< 3.0.0), otherwise we have to rewrite the train method:
+        "emcee<3.0.0",
     ],
     tests_require=tests_require,
     setup_requires=["setuptools", "pytest-runner>=2.0,<3dev"],
