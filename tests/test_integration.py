@@ -1,22 +1,21 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Perform integration tests for `orion.algo.robo`."""
 from __future__ import annotations
 
-from abc import ABC
 import copy
 import itertools
-from typing import ClassVar, Type, TypeVar
+from typing import ClassVar, TypeVar
 
+import pytest
 from orion.core.utils.format_trials import tuple_to_trial
 from orion.core.worker.trial import Trial
 from orion.testing.algo import BaseAlgoTests, TestPhase, first_phase_only
-from orion.algo.robo.base import RoBO
-from orion.algo.robo.gp import RoBO_GP, RoBO_GP_MCMC
-from orion.algo.robo.bohamiann import RoBO_BOHAMIANN
-from orion.algo.robo.randomforest import RoBO_RandomForest
-from orion.algo.robo.dngo import RoBO_DNGO
 
+from orion.algo.robo.base import RoBO
+from orion.algo.robo.bohamiann import RoBO_BOHAMIANN
+from orion.algo.robo.dngo import RoBO_DNGO
+from orion.algo.robo.gp import RoBO_GP, RoBO_GP_MCMC
+from orion.algo.robo.randomforest import RoBO_RandomForest
 
 N_INIT = 10
 
@@ -140,6 +139,7 @@ class TestRoBO_GP_MCMC(BaseRoBOTests[RoBO_GP_MCMC]):
     ]
 
 
+@pytest.mark.skip(reason="pyrfr seems to have changed.")
 class TestRoBO_RandomForest(BaseRoBOTests[RoBO_RandomForest]):
     algo_type: ClassVar[type[RoBO]] = RoBO_RandomForest
     config = {
