@@ -37,6 +37,7 @@ class BaseRoBOTests(BaseAlgoTests[RoboAlgoType]):
         super().__init_subclass__()
         cls.algo_name = cls.algo_type.__name__.lower()
 
+    @first_phase_only
     def test_suggest_init(self, phase: TestPhase):
         algo = self.create_algo()
         trials = algo.suggest(num=phase.length)
@@ -173,6 +174,7 @@ class TestRoBO_DNGO(BaseRoBOTests[RoBO_DNGO]):
         "batch_size": 10,
         "num_epochs": 10,
         "adapt_epoch": 20,
+        "num_epochs": 10,
         "n_initial_points": N_INIT // 2,
         "seed": 1234,
     }
@@ -240,7 +242,7 @@ class TestRoBO_BOHAMIANN(BaseRoBOTests[RoBO_BOHAMIANN]):
     ]
 
     def test_configuration_to_model(self, mocker):
-
+        """Test that the values passed in the configuration make their way to the model."""
         train_config = dict(
             burnin_steps=self.config["burnin_steps"] * 2,
             num_steps=500,
