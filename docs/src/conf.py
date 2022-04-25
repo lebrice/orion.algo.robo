@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # orion.algo.robo documentation build configuration file.
 #
@@ -11,11 +10,9 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import glob
+import os
 import re
 import sys
-import os
-import shlex
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -65,7 +62,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u"orion.algo.robo"
+project = "orion.algo.robo"
 _full_version = algo_plugin.__version__
 copyright = algo_plugin.__copyright__
 author = algo_plugin.__author__
@@ -122,6 +119,24 @@ pygments_style = "sphinx"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+type_hints = [
+    "Space",
+    "MaximizerName",
+    "AcquisitionFnName",
+    "SamplingMethod",
+]
+other_buggy_things = [
+    "orion.algo.robo.gp.RoBO_GP.build_model",
+    "orion.algo.robo.gp.RoBO_GP_MCMC.build_model",
+    "orion.algo.robo.randomforest.RoBO_RandomForest.build_model",
+    "orion.algo.robo.dngo.RoBO_DNGO.build_model",
+    "orion.algo.robo.bohamiann.RoBO_BOHAMIANN.build_model",
+]
+nitpicky = True
+nitpick_ignore = [("py:class", annotation_str) for annotation_str in type_hints] + [
+    ("py:obj", buggy_thing) for buggy_thing in other_buggy_things
+]
 
 
 # -- Options for HTML output ----------------------------------------------
@@ -246,13 +261,13 @@ htmlhelp_basename = "robodoc"
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
-    #'papersize': 'letterpaper',
+    # 'papersize': 'letterpaper',
     # The font size ('10pt', '11pt' or '12pt').
-    #'pointsize': '10pt',
+    # 'pointsize': '10pt',
     # Additional stuff for the LaTeX preamble.
-    #'preamble': '',
+    # 'preamble': '',
     # Latex figure (float) alignment
-    #'figure_align': 'htbp',
+    # 'figure_align': 'htbp',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
@@ -262,8 +277,8 @@ latex_documents = [
     (
         master_doc,
         "orion.algo.robo.tex",
-        u"Oríon algo robo Documentation",
-        u"Xavier Bouthillier",
+        "Oríon algo robo Documentation",
+        "Xavier Bouthillier",
         "manual",
     ),
 ]
@@ -293,7 +308,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "projectname", u"Oríon algo robo Documentation", [author], 1)]
+man_pages = [(master_doc, "projectname", "Oríon algo robo Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -308,7 +323,7 @@ texinfo_documents = [
     (
         master_doc,
         "robo",
-        u"Oríon algo robo Documentation",
+        "Oríon algo robo Documentation",
         author,
         "robo",
         algo_plugin.__descr__,
