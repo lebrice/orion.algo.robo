@@ -8,9 +8,10 @@ from typing import Sequence
 import numpy
 import torch
 from orion.algo.space import Space
-from pybnn.bohamiann import Bohamiann
+from pybnn.bohamiann import Bohamiann, nll
 from robo.models.base_model import BaseModel
 from robo.models.wrapper_bohamiann import get_default_network
+from torch import nn
 from typing_extensions import Literal
 
 from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO, build_bounds
@@ -130,6 +131,8 @@ class RoBO_BOHAMIANN(RoBO):
     def build_model(self):
         lower, upper = build_bounds(self.space)
         return OrionBohamiannWrapper(
+            lower=lower,
+            upper=upper,
             normalize_input=self.normalize_input,
             normalize_output=self.normalize_output,
             burnin_steps=self.burnin_steps,
@@ -142,8 +145,6 @@ class RoBO_BOHAMIANN(RoBO):
             epsilon=self.epsilon,
             mdecay=self.mdecay,
             verbose=self.verbose,
-            lower=lower,
-            upper=upper,
         )
 
 
@@ -153,6 +154,10 @@ class OrionBohamiannWrapper(BaseModel):
 
     Parameters
     ----------
+    lower: numpy.ndarray
+        The lower bounds of the search space.
+    upper: numpy.ndarray
+        The upper bounds of the search space.
     normalize_input: bool
         Normalize the input based on the provided bounds (zero mean and unit standard deviation).
         Defaults to ``True``.
@@ -205,7 +210,11 @@ class OrionBohamiannWrapper(BaseModel):
         epsilon: float = 1e-10,
         mdecay: float = 0.05,
         verbose: bool = False,
-        **kwargs,
+        normalize_input: bool = True,
+        normalize_output: bool = True,
+        metrics: tuple[type[nn.Module], ...] = (nn.MSELoss,),
+        likelihood_function=nll,
+        print_every_n_steps: int = 100,
     ):
         self.lower = lower
         self.upper = upper
@@ -222,7 +231,11 @@ class OrionBohamiannWrapper(BaseModel):
             get_network=get_default_network,
             sampling_method=sampling_method,
             use_double_precision=use_double_precision,
-            **kwargs,
+            normalize_input=normalize_input,
+            normalize_output=normalize_output,
+            metrics=metrics,
+            likelihood_function=likelihood_function,
+            print_every_n_steps=print_every_n_steps,
         )
         self.burnin_steps = burnin_steps
 
