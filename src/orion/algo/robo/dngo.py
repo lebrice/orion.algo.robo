@@ -124,18 +124,13 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
             normalize_output=normalize_output,
             rng=rng,
         )
+        self.burned: bool = False
         self.lower = lower
         self.upper = upper
         self.device = torch.device(
             device or ("cuda" if torch.cuda.is_available() else "cpu")
         )
         self.prior: Prior
-
-        # Cache to prevent retraining on the same data.
-        self._X: numpy.ndarray | None = None
-        self._y: numpy.ndarray | None = None
-        self._do_optimize: bool | None = None
-
         self.network: Net
         self.optimizer: optim.Adam
         self._initial_network_weights: OrderedDict[str, torch.Tensor]
@@ -169,7 +164,7 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
     def state_dict(self) -> dict:
         """Return the current state algorithm so that it can be restored."""
         # NOTE: In the case of DNGO, we just need to save the RNG state, since the networks are
-        # not reused between iterations.
+        # not reused between iterations and are created using the RNG state.
         return {
             "torch": torch.random.get_rng_state(),
             "torch_cuda": (
@@ -186,9 +181,9 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
         pytorch_seed = rand_nums[0]
 
         if torch.cuda.is_available():
-            torch.backends.cudnn.benchmark = False
+            torch.backends.cudnn.benchmark = False  # type: ignore
             torch.cuda.manual_seed_all(pytorch_seed)
-            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.deterministic = True  # type: ignore
 
         torch.manual_seed(pytorch_seed)
 
@@ -228,29 +223,8 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
         start_time = time.time()
         logger.info(f"Starting training with {X.shape[0]} samples")
 
-        if self._X is None or self._y is None:
-            logger.info("Training for the first time.")
-        elif (
-            self._X.shape == X.shape
-            and numpy.allclose(self._X, X)
-            and self._y.shape == y.shape
-            and numpy.allclose(self._y, y)
-            and self._do_optimize == do_optimize
-        ):
-            logger.info("Skipping training, since we've already trained on this data")
-            return
-        else:
-            logger.info("Training with additional points")
-            assert self.network is not None
-            assert self.optimizer is not None
-            assert self._initial_network_weights is not None
-            assert self._initial_optimizer_state is not None
-            self.network.load_state_dict(self._initial_network_weights)
-            self.optimizer.load_state_dict(self._initial_optimizer_state)
-
-        self._X = X
-        self._y = y
-        self._do_optimize = do_optimize
+        self.network.load_state_dict(self._initial_network_weights)
+        self.optimizer.load_state_dict(self._initial_optimizer_state)
 
         # Normalize inputs
         if self.normalize_input:
@@ -271,10 +245,6 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
             batch_size = self.X.shape[0]
         else:
             batch_size = self.batch_size
-
-        # Create the neural network
-        features = X.shape[1]
-        # TODO: Reinitialize the network weights, rather than re-create them?
 
         # Start training
         lc = np.zeros([self.num_epochs])
@@ -391,7 +361,6 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
             X_ = X_test
 
         # Get features from the net
-
         theta = self._to_numpy(self.network.basis_funcs(self._to_tensor(X_)))
 
         # Marginalise predictions over hyperparameters of the BLR
