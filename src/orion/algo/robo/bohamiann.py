@@ -9,12 +9,17 @@ import numpy
 import torch
 from orion.algo.space import Space
 from pybnn.bohamiann import Bohamiann, nll
-from robo.models.base_model import BaseModel
 from robo.models.wrapper_bohamiann import get_default_network
 from torch import nn
 from typing_extensions import Literal
 
-from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO, build_bounds
+from orion.algo.robo.base import (
+    AcquisitionFnName,
+    MaximizerName,
+    RoBO,
+    WrappedRoboModel,
+    build_bounds,
+)
 
 SamplingMethod = Literal["adaptive_sghmc", "sgld", "preconditioned_sgld", "sghmc"]
 
@@ -148,7 +153,7 @@ class RoBO_BOHAMIANN(RoBO):
         )
 
 
-class OrionBohamiannWrapper(BaseModel):
+class OrionBohamiannWrapper(WrappedRoboModel):
     """
     Wrapper for PyBNN's BOHAMIANN model
 
@@ -216,6 +221,7 @@ class OrionBohamiannWrapper(BaseModel):
         likelihood_function=nll,
         print_every_n_steps: int = 100,
     ):
+        super().__init__()
         self.lower = lower
         self.upper = upper
         self.num_steps = num_steps

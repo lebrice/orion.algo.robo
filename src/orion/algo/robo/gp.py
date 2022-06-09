@@ -76,6 +76,7 @@ class RoBO_GP(RoBO):
         self.normalize_output = normalize_output
 
     def build_model(self) -> OrionGaussianProcessWrapper:
+        """Builds the model for the optimisation."""
         lower, upper = build_bounds(self.space)
         kernel = build_kernel(lower, upper)
         prior = build_prior(kernel)
@@ -123,7 +124,7 @@ class RoBO_GP_MCMC(RoBO_GP):
     chain_length: int
         The length of the MCMC chain. We start ``n_hypers`` walker for chain_length
         steps and we use the last sample in the chain as a hyperparameter sample.
-        ``n_hypers`` is automatically infered based on dimensionality of the search space.
+        ``n_hypers`` is automatically inferred based on dimensionality of the search space.
         Defaults to 2000.
     burnin_steps: int
         The number of burnin steps before the actual MCMC sampling starts.

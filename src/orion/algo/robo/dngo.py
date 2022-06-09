@@ -6,7 +6,6 @@ from __future__ import annotations
 import logging
 from typing import OrderedDict, Sequence
 
-import numpy
 import numpy as np
 import torch
 from orion.algo.space import Space
@@ -24,6 +23,7 @@ from pybnn.dngo import (
     zero_mean_unit_var_normalization,
 )
 from torch.nn import functional as F
+from torch.utils.data import DataLoader, TensorDataset
 
 from orion.algo.robo.base import (
     AcquisitionFnName,
@@ -38,6 +38,7 @@ from orion.algo.robo.base import (
 logger = logging.getLogger(__name__)
 
 
+# pylint: disable = too-many-instance-attributes
 class OrionDNGOWrapper(DNGO, WrappedRoboModel):
     """
     Wrapper for PyBNN's DNGO model
@@ -82,10 +83,11 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
 
     """
 
+    # pylint: disable = too-many-locals
     def __init__(
         self,
-        lower: numpy.ndarray,
-        upper: numpy.ndarray,
+        lower: np.ndarray,
+        upper: np.ndarray,
         device: torch.device | str | None = None,
         batch_size: int = 10,
         num_epochs: int = 500,
@@ -103,7 +105,7 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
         burnin_steps: int = 2000,
         normalize_input: int = True,
         normalize_output: int = True,
-        rng: numpy.random.RandomState | None = None,
+        rng: np.random.RandomState | None = None,
     ):
         super().__init__(
             batch_size=batch_size,
@@ -176,7 +178,7 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
 
     def seed(self, seed: int) -> None:
         """Seed all internal RNGs"""
-        self.rng = numpy.random.RandomState(seed)
+        self.rng = np.random.RandomState(seed)
         rand_nums = self.rng.randint(1, int(10e8), 2)
         pytorch_seed = rand_nums[0]
 
@@ -191,15 +193,44 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
         # Recreate the modules using that RNG seed.
         self._create_modules()
 
-    def _to_tensor(self, v: numpy.ndarray) -> torch.Tensor:
+    def _to_tensor(self, v: np.ndarray) -> torch.Tensor:
         return torch.as_tensor(v, device=self.device, dtype=torch.float32)
 
     @staticmethod
-    def _to_numpy(v: torch.Tensor) -> numpy.ndarray:
+    def _to_numpy(v: torch.Tensor) -> np.ndarray:
         return v.detach().cpu().numpy()
 
-    @BaseModel._check_shapes_train  # type: ignore
-    def train(self, X: numpy.ndarray, y: numpy.ndarray, do_optimize: bool = True):
+    def train_epoch(self, X: np.ndarray, y: np.ndarray) -> float:
+        """Perform one training epoch, and return the average loss per batch."""
+        train_err: torch.Tensor | float = 0.0
+        batch_index = 0
+
+        # Check if we have enough points to create a minibatch otherwise use all data points
+        batch_size = min(self.batch_size, self.X.shape[0])
+        X_tensor = self._to_tensor(X)
+        y_tensor = self._to_tensor(y)
+
+        dataset = TensorDataset(X_tensor, y_tensor)
+        epoch_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        for batch_index, (inputs, targets) in enumerate(epoch_dataloader):
+            self.optimizer.zero_grad()
+            output = self.network(inputs)
+            loss = F.mse_loss(output, targets)
+            loss.backward()
+            self.optimizer.step()
+
+            train_err += loss.detach()
+
+        average_error = train_err / (batch_index + 1)
+
+        logger.debug(  # pylint: disable=logging-too-many-args
+            "Training loss:\t\t{:.5g}",
+            average_error,
+        )
+        return float(average_error)
+
+    @BaseModel._check_shapes_train  # type: ignore  pylint: disable=protected-access
+    def train(self, X: np.ndarray, y: np.ndarray, do_optimize: bool = True):
         """
         Trains the model on the provided data.
 
@@ -221,7 +252,7 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
 
         """
         start_time = time.time()
-        logger.info(f"Starting training with {X.shape[0]} samples")
+        logger.info("Starting training with %s samples", X.shape[0])
 
         self.network.load_state_dict(self._initial_network_weights)
         self.optimizer.load_state_dict(self._initial_optimizer_state)
@@ -240,46 +271,30 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
 
         self.y = self.y[:, None]
 
-        # Check if we have enough points to create a minibatch otherwise use all data points
-        if self.X.shape[0] <= self.batch_size:
-            batch_size = self.X.shape[0]
-        else:
-            batch_size = self.batch_size
-
         # Start training
-        lc = np.zeros([self.num_epochs])
+        loss_per_epoch = np.zeros([self.num_epochs])
 
         for epoch in range(self.num_epochs):
-
             epoch_start_time = time.time()
 
-            train_err: torch.Tensor | float = 0.0
-            train_batches = 0
+            average_batch_loss = self.train_epoch(self.X, self.y)
 
-            for train_batches, batch in enumerate(
-                self.iterate_minibatches(self.X, self.y, batch_size, shuffle=True)
-            ):
-                inputs = self._to_tensor(batch[0])
-                targets = self._to_tensor(batch[1])
+            loss_per_epoch[average_batch_loss] = average_batch_loss
 
-                self.optimizer.zero_grad()
-                output = self.network(inputs)
-                loss = F.mse_loss(output, targets)
-                loss.backward()
-                self.optimizer.step()
-
-                train_err += loss.detach()
-
-            lc[epoch] = train_err / train_batches
-            logger.debug("Epoch {} of {}", epoch + 1, self.num_epochs)
+            logger.debug(  # pylint: disable=logging-too-many-args
+                "Epoch {} of {}",
+                epoch + 1,
+                self.num_epochs,
+            )
             curtime = time.time()
             epoch_time = curtime - epoch_start_time
             total_time = curtime - start_time
-            logger.debug(
-                "Epoch time {:.3f}s, total time {:.3f}s", epoch_time, total_time
-            )
 
-            logger.debug("Training loss:\t\t{:.5g}", train_err / train_batches)
+            logger.debug(  # pylint: disable=logging-too-many-args
+                "Epoch time {:.3f}s, total time {:.3f}s",
+                epoch_time,
+                total_time,
+            )
 
         # Design matrix
         self.Theta = self._to_numpy(self.network.basis_funcs(self._to_tensor(self.X)))
@@ -324,7 +339,7 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
 
             self.hypers = [[self.alpha, self.beta]]
 
-        logger.info("Hypers: %s" % self.hypers)
+        logger.info("Hypers: %s", self.hypers)
         self.models: list = []
         for sample in self.hypers:
             # Instantiate a model for each hyperparameter configuration
@@ -335,8 +350,8 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
 
             self.models.append(model)
 
-    @BaseModel._check_shapes_predict
-    def predict(self, X_test: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
+    @BaseModel._check_shapes_predict  # type: ignore  pylint: disable=protected-access
+    def predict(self, X_test: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         r"""
         Returns the predictive mean and variance of the objective function at
         the given test points.
@@ -390,6 +405,7 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
         return m, v
 
 
+# pylint: disable=unsubscriptable-object, too-few-public-methods
 class RoBO_DNGO(RoBO[OrionDNGOWrapper]):
     """
     Wrapper for RoBO with DNGO
@@ -480,6 +496,7 @@ class RoBO_DNGO(RoBO[OrionDNGOWrapper]):
         self.adapt_epoch = adapt_epoch
 
     def build_model(self) -> OrionDNGOWrapper:
+        """Build the model."""
         lower, upper = build_bounds(self.space)
         n_hypers = infer_n_hypers(build_kernel(lower, upper))
         return OrionDNGOWrapper(

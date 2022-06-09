@@ -4,27 +4,15 @@ Base class for RoBO algorithms.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Generic,
-    Iterable,
-    Literal,
-    Optional,
-    Sequence,
-    TypeVar,
-)
+from typing import Any, Callable, ClassVar, Generic, Iterable, Sequence, TypeVar
 
 import george
 import numpy
-import numpy as np
 from george.kernels import Kernel
 from orion.algo.base import BaseAlgorithm
 from orion.algo.space import Space
 from orion.core.utils.format_trials import trial_to_tuple, tuple_to_trial
 from orion.core.worker.trial import Trial
-from pybnn.base_model import BaseModel as PyBnnBaseModel
 from robo.acquisition_functions.base_acquisition import BaseAcquisitionFunction
 from robo.acquisition_functions.ei import EI
 from robo.acquisition_functions.lcb import LCB
@@ -37,12 +25,13 @@ from robo.maximizers.scipy_optimizer import SciPyOptimizer
 from robo.models.base_model import BaseModel
 from robo.priors.default_priors import DefaultPrior
 from robo.solver.bayesian_optimization import BayesianOptimization
+from typing_extensions import Literal
 
 AcquisitionFnName = Literal["ei", "log_ei", "pi", "lcb"]
 MaximizerName = Literal["random", "scipy", "differential_evolution"]
 
 
-def build_bounds(space: Space) -> tuple[np.ndarray, np.ndarray]:
+def build_bounds(space: Space) -> tuple[numpy.ndarray, numpy.ndarray]:
     """
     Build bounds of optimization space
 
@@ -63,10 +52,10 @@ def build_bounds(space: Space) -> tuple[np.ndarray, np.ndarray]:
         lower.append(low)
         upper.append(high)
 
-    return np.array(lower), np.array(upper)
+    return numpy.array(lower), numpy.array(upper)
 
 
-def build_kernel(lower: np.ndarray, upper: np.ndarray) -> Kernel:
+def build_kernel(lower: numpy.ndarray, upper: numpy.ndarray) -> Kernel:
     """
     Build kernels for GPs.
 
@@ -126,9 +115,7 @@ def build_acquisition_func(acquisition_func: AcquisitionFnName, model: BaseModel
     elif acquisition_func == "lcb":
         acquisition_function = LCB(model)
     else:
-        raise ValueError(
-            "'{}' is not a valid acquisition function".format(acquisition_func)
-        )
+        raise ValueError(f"'{acquisition_func}' is not a valid acquisition function")
 
     return acquisition_function
 
@@ -188,19 +175,22 @@ def build_optimizer(
 
 
 class WrappedRoboModel(BaseModel, ABC):
-    lower: np.ndarray
-    upper: np.ndarray
+    """Base class that contains the methods we add to the models from ROBO."""
+
+    lower: numpy.ndarray
+    upper: numpy.ndarray
 
     @abstractmethod
     def seed(self, seed: int | Sequence[int] | None) -> None:
-        ...
+        """Seed all internal RNGs."""
 
     @abstractmethod
     def state_dict(self) -> dict:
-        ...
+        """Restore the state of the optimizer"""
 
     @abstractmethod
     def set_state(self, state_dict: dict) -> None:
+        """Return the current state of the optimizer so that it can be restored"""
         ...
 
 
@@ -279,7 +269,7 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
 
     @abstractmethod
     def build_model(self) -> ModelType:
-        """Build model and register it as ``self.model``"""
+        """Build the model that will be registered as ``self.model``"""
         raise NotImplementedError()
 
     def build_acquisition_func(self) -> BaseAcquisitionFunction:
@@ -288,7 +278,7 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
         return build_acquisition_func(self.acquisition_func, self.model)
 
     @property
-    def XY(self) -> tuple[np.ndarray, np.ndarray]:
+    def XY(self) -> tuple[numpy.ndarray, numpy.ndarray]:
         """Matrix containing trial points and their results."""
         # Keep only the trials that have a result.
         trials_and_objectives: list[tuple[Trial, float]] = [
@@ -301,7 +291,7 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
         for trial, objective in trials_and_objectives:
             x.append(trial_to_tuple(trial, space=self.space))
             y.append(objective)
-        return np.array(x), np.array(y)
+        return numpy.array(x), numpy.array(y)
 
     def seed_rng(self, seed: int | Sequence[int] | None) -> None:
         """Seed the state of the random number generator.
