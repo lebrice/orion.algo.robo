@@ -279,7 +279,7 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
 
             average_batch_loss = self.train_epoch(self.X, self.y)
 
-            loss_per_epoch[average_batch_loss] = average_batch_loss
+            loss_per_epoch[epoch] = average_batch_loss
 
             logger.debug(  # pylint: disable=logging-too-many-args
                 "Epoch {} of {}",
