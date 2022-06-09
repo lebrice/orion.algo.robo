@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Installation script for `orion.algo.robo`."""
 import os
 
 from setuptools import setup
 
 import versioneer
-
 
 repo_root = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,7 +34,8 @@ setup_args = dict(
         "BaseAlgorithm": [
             "robo_gp = orion.algo.robo.gp:RoBO_GP",
             "robo_gp_mcmc = orion.algo.robo.gp:RoBO_GP_MCMC",
-            "robo_randomforest = orion.algo.robo.randomforest:RoBO_RandomForest",
+            # TODO: Temporarily disabled.
+            # "robo_randomforest = orion.algo.robo.randomforest:RoBO_RandomForest",
             "robo_dngo = orion.algo.robo.dngo:RoBO_DNGO",
             "robo_bohamiann = orion.algo.robo.bohamiann:RoBO_BOHAMIANN",
         ],
