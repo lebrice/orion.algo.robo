@@ -3,6 +3,7 @@ Base class for RoBO algorithms.
 """
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from typing import Any, Callable, ClassVar, Generic, Iterable, Sequence, TypeVar
 
@@ -248,6 +249,16 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
         self.robo: BayesianOptimization
         self.rng: numpy.random.RandomState
         self._initialized: bool = False
+
+        # TODO: Remove once the fix of https://github.com/Epistimio/orion/pull/947 is included in
+        # a release of orion.
+        init_signature = inspect.signature(type(self).__init__)
+        self._param_names = [
+            name
+            for name, param in init_signature.parameters.items()
+            if name not in ["self", "space"]
+            and param.kind not in [param.VAR_KEYWORD, param.VAR_POSITIONAL]
+        ]
 
     def _initialize(self, seed_rng: bool = True) -> None:
         if self._initialized:
