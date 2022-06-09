@@ -29,7 +29,7 @@ def modified_config(config, **kwargs):
 RoboAlgoType = TypeVar("RoboAlgoType", bound=RoBO)
 
 
-class BaseRoBOTests(BaseAlgoTests[RoboAlgoType]):
+class BaseRoBOTests(BaseAlgoTests):
     # To be overwritten by subclasses:
     algo_type: ClassVar[type[RoBO]] = RoBO
 
@@ -105,7 +105,7 @@ class BaseRoBOTests(BaseAlgoTests[RoboAlgoType]):
         assert algo.is_done
 
 
-class TestRoBO_GP(BaseRoBOTests[RoBO_GP]):
+class TestRoBO_GP(BaseRoBOTests):
     algo_type: ClassVar[type[RoBO]] = RoBO_GP
     config = {
         "maximizer": "random",
@@ -122,7 +122,7 @@ class TestRoBO_GP(BaseRoBOTests[RoBO_GP]):
     ]
 
 
-class TestRoBO_GP_MCMC(BaseRoBOTests[RoBO_GP_MCMC]):
+class TestRoBO_GP_MCMC(BaseRoBOTests):
     algo_type: ClassVar[type[RoBO]] = RoBO_GP_MCMC
     config = {
         "maximizer": "random",
@@ -141,7 +141,7 @@ class TestRoBO_GP_MCMC(BaseRoBOTests[RoBO_GP_MCMC]):
 
 
 @pytest.mark.skip(reason="pyrfr seems to have changed.")
-class TestRoBO_RandomForest(BaseRoBOTests[RoBO_RandomForest]):
+class TestRoBO_RandomForest(BaseRoBOTests):
     algo_type: ClassVar[type[RoBO]] = RoBO_RandomForest
     config = {
         "maximizer": "random",
@@ -160,7 +160,7 @@ class TestRoBO_RandomForest(BaseRoBOTests[RoBO_RandomForest]):
     ]
 
 
-class TestRoBO_DNGO(BaseRoBOTests[RoBO_DNGO]):
+class TestRoBO_DNGO(BaseRoBOTests):
     algo_type: ClassVar[type[RoBO]] = RoBO_DNGO
 
     config = {
@@ -216,7 +216,7 @@ class TestRoBO_DNGO(BaseRoBOTests[RoBO_DNGO]):
         assert model.batch_size == tmp_config["batch_size"]
 
 
-class TestRoBO_BOHAMIANN(BaseRoBOTests[RoBO_BOHAMIANN]):
+class TestRoBO_BOHAMIANN(BaseRoBOTests):
     algo_type: ClassVar[type[RoBO]] = RoBO_BOHAMIANN
     config = {
         "maximizer": "random",

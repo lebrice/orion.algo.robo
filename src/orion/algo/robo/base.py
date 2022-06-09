@@ -30,7 +30,7 @@ from typing_extensions import Literal
 AcquisitionFnName = Literal["ei", "log_ei", "pi", "lcb"]
 MaximizerName = Literal["random", "scipy", "differential_evolution"]
 
-
+# pylint: disable=unsubscriptable-object
 def build_bounds(space: Space) -> tuple[numpy.ndarray, numpy.ndarray]:
     """
     Build bounds of optimization space
