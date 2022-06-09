@@ -29,6 +29,7 @@ setup_args = dict(
     url="https://github.com/Epistimio/orion.algo.robo",
     packages=["orion.algo.robo"],
     package_dir={"": "src"},
+    python_requires=">=3.7",
     include_package_data=True,
     entry_points={
         "BaseAlgorithm": [
