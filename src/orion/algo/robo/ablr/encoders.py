@@ -1,21 +1,24 @@
 """ Module for the 'feature maps' from the paper. """
 from abc import ABC, abstractmethod
-from typing import Dict
 
 import numpy as np
 import torch
+from orion.algo.space import Space
 from torch import Tensor, nn
+from torch.nn.parameter import Parameter
 from torch.nn.utils.convert_parameters import parameters_to_vector
 
 
 class Encoder(nn.Module, ABC):
     """Base class for an Encoder that maps samples from a given input space
     to vectors of length `out_features`.
+
+    NOTE: Assumes that the space is already flattened.
     """
 
-    def __init__(self, input_space: Dict, out_features: int):
+    def __init__(self, input_space: Space, out_features: int):
         super().__init__()
-        self.input_space: Dict = input_space
+        self.input_space = input_space
         self.in_features: int = len(input_space)
         self.out_features: int = out_features
 
@@ -26,13 +29,13 @@ class Encoder(nn.Module, ABC):
 
     @abstractmethod
     def forward(self, inputs: Tensor) -> Tensor:
-        pass
+        """Forward pass of the encoder."""
 
 
 class NeuralNetEncoder(Encoder):
     """Neural net encoder, in the style of DNGO or ABLR."""
 
-    def __init__(self, input_space: Dict, out_features: int, hidden_neurons: int = 50):
+    def __init__(self, input_space: Space, out_features: int, hidden_neurons: int = 50):
         super().__init__(input_space=input_space, out_features=out_features)
         self.hidden_neurons = hidden_neurons
         self.dense = nn.Sequential(
@@ -56,13 +59,13 @@ class RandomFourierBasisEncoder(Encoder):
     """
 
     def __init__(
-        self, input_space: Dict, out_features: int, kernel_bandwidth: float = 1.0
+        self, input_space: Space, out_features: int, kernel_bandwidth: float = 1.0
     ):
         super().__init__(input_space=input_space, out_features=out_features)
         p = self.in_features
         d = self.out_features
         # The "bandwidth of the approximated radial basis function kernel".
-        self.kernel_bandwidth = nn.Parameter(torch.Tensor([kernel_bandwidth]))
+        self.kernel_bandwidth = Parameter(torch.Tensor([kernel_bandwidth]))
         # TODO: Should these be re-sampled for each forward pass?
         self.U = torch.randn([d, p])
         self.b = torch.rand([d]) * 2 * np.pi
