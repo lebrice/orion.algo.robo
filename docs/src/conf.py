@@ -278,7 +278,7 @@ latex_documents = [
         master_doc,
         "orion.algo.robo.tex",
         "Oríon algo robo Documentation",
-        "Xavier Bouthillier",
+        "Epistímio",
         "manual",
     ),
 ]
