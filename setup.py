@@ -12,9 +12,6 @@ tests_require = ["pytest>=3.0.0", "pytest-mock"]
 
 extras_require = {
     "test": tests_require,
-    # "george": [
-    #     # "george @ git+https://github.com/lebrice/george.git@orion",
-    # ],
 }
 
 setup_args = dict(
