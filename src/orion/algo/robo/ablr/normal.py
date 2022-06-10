@@ -67,3 +67,11 @@ class Normal(NormalBase):
         if isinstance(other, NormalBase):
             raise NotImplementedError("Only support division by a constant for now")
         return NotImplemented
+
+    def __itruediv__(self, other: C) -> Normal:
+        if isinstance(other, (int, float, Tensor)):
+            self *= 1 / other
+            return self
+        if isinstance(other, NormalBase):
+            raise NotImplementedError("Only support division by a constant for now")
+        return NotImplemented

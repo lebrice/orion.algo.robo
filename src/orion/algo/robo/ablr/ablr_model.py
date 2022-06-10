@@ -10,7 +10,7 @@ import warnings
 from dataclasses import dataclass
 from functools import partial, singledispatch
 from logging import getLogger as get_logger
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 import numpy as np
 import torch
@@ -21,14 +21,15 @@ from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 from torch.utils.data import DataLoader, TensorDataset
 
-from .encoders import Encoder, NeuralNetEncoder
-from .normal import Normal
+from orion.algo.robo.ablr.encoders import Encoder, NeuralNetEncoder
+from orion.algo.robo.ablr.normal import Normal
+from orion.algo.robo.base import Model, build_bounds
 
 T = TypeVar("T", np.ndarray, Tensor)
 logger = get_logger(__name__)
 
 
-class ABLR(nn.Module, BaseModel):
+class ABLR(nn.Module, BaseModel, Model):
     """Surrogate model for a single task."""
 
     @dataclass
@@ -90,15 +91,23 @@ class ABLR(nn.Module, BaseModel):
         self.register_buffer("y_mean", torch.zeros(()))
         self.register_buffer("y_var", torch.ones(()))
 
+    @property
+    def lower(self) -> np.ndarray:
+        return build_bounds(self.space)[0]
+
+    @property
+    def upper(self) -> np.ndarray:
+        return build_bounds(self.space)[1]
+
     def state_dict(
         self,
-        destination=None,
-        prefix="",
-        keep_vars=False,
-    ) -> dict:
-        state_dict = super().state_dict(
-            destination=destination, prefix=prefix, keep_vars=keep_vars  # type: ignore
+        prefix: str = "",
+        keep_vars: bool = False,
+    ):
+        state_dict: dict[str, Any] = super().state_dict(
+            prefix=prefix, keep_vars=keep_vars
         )
+        state_dict["rng"] = {"torch": torch.random.get_rng_state()}
         state_dict["optimizer"] = self.optimizer.state_dict()
         return state_dict
 
@@ -107,6 +116,29 @@ class ABLR(nn.Module, BaseModel):
         self.optimizer.load_state_dict(optim_state)
         assert self.optimizer._params is not None
         return super().load_state_dict(state_dict, strict=strict)
+
+    def set_state(self, state_dict: dict) -> None:
+        """Restore the state of the optimizer"""
+        random_state: dict = state_dict.pop("rng")
+        torch.random.set_rng_state(random_state["torch"])
+        self.load_state_dict(state_dict)
+
+    def seed(self, seed: int) -> None:
+        """Seed the state of the random number generator.
+
+        :param seed: Integer seed for the random number generator.
+
+        .. note:: This methods does nothing if the algorithm is deterministic.
+        """
+        # NOTE: No need to create a bunch of seeds, we only need the pytorch seed.
+        pytorch_seed = seed
+
+        torch.manual_seed(pytorch_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(pytorch_seed)
+            # NOTE: Not really necessary, makes code a LOT slower.
+            # torch.backends.cudnn.benchmark = False
+            # torch.backends.cudnn.deterministic = True
 
     def predict(self, X_test: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Return the predictive mean and variance for the given points."""

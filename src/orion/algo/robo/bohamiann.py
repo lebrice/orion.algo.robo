@@ -9,6 +9,7 @@ import numpy
 import torch
 from orion.algo.space import Space
 from pybnn.bohamiann import Bohamiann, nll
+from robo.models.base_model import BaseModel
 from robo.models.wrapper_bohamiann import get_default_network
 from torch import nn
 from typing_extensions import Literal
@@ -16,8 +17,8 @@ from typing_extensions import Literal
 from orion.algo.robo.base import (
     AcquisitionFnName,
     MaximizerName,
+    Model,
     RoBO,
-    WrappedRoboModel,
     build_bounds,
 )
 
@@ -153,7 +154,7 @@ class RoBO_BOHAMIANN(RoBO):
         )
 
 
-class OrionBohamiannWrapper(WrappedRoboModel):
+class OrionBohamiannWrapper(BaseModel, Model):
     """
     Wrapper for PyBNN's BOHAMIANN model
 

@@ -9,31 +9,47 @@ from __future__ import annotations
 from logging import getLogger as get_logger
 from typing import Sequence
 
-import numpy as np
 import torch
 from orion.algo.space import Space
 from orion.core.worker.trial import Trial
 
 from orion.algo.robo.ablr.ablr_model import ABLR
-from orion.algo.robo.ablr.normal import Normal
-from orion.algo.robo.base import (
-    AcquisitionFnName,
-    MaximizerName,
-    RoBO,
-    WrappedRoboModel,
-    build_bounds,
-)
+from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO
 
 logger = get_logger(__file__)
 
 
-class RoBO_ABLR(RoBO["OrionABLRWrapper"]):
-    """[WIP]: Wrapper for the ABLR[1] algorithm.
-
-    The algo is implemented in the HPO-Warm-Start repo.
+class RoBO_ABLR(RoBO[ABLR]):
+    """Implements the ABLR[1] algorithm, using RoBO.
 
     [1] [Scalable HyperParameter Transfer Learning](
         https://papers.nips.cc/paper/7917-scalable-hyperparameter-transfer-learning)
+
+
+    Parameters
+    ----------
+    space: ``orion.algo.space.Space``
+        Optimisation space with priors for each dimension.
+    seed: None, int or sequence of int
+        Seed to sample initial points and candidates points.
+        Default: 0.
+    n_initial_points: int
+        Number of initial points randomly sampled. If new points
+        are requested and less than `n_initial_points` are observed,
+        the next points will also be sampled randomly instead of being
+        sampled from the parzen estimators.
+        Default: ``20``
+    maximizer: str
+        The optimizer for the acquisition function.
+        Can be one of ``{"random", "scipy", "differential_evolution"}``.
+        Defaults to 'random'
+    acquisition_func: str
+        Name of the acquisition function. Can be one of ``['ei', 'log_ei', 'pi', 'lcb']``.
+    hparams: dict | ABLR.HParams | None
+        Hyperparameters for the ABLR model.
+        If None, the default hyperparameters will be used.
+    normalize_inputs: bool
+        Whether to normalize the inputs.
     """
 
     def __init__(
@@ -46,34 +62,6 @@ class RoBO_ABLR(RoBO["OrionABLRWrapper"]):
         hparams: ABLR.HParams | dict | None = None,
         normalize_inputs: bool = True,
     ):
-        """
-
-        Parameters
-        ----------
-        space: ``orion.algo.space.Space``
-            Optimisation space with priors for each dimension.
-        seed: None, int or sequence of int
-            Seed to sample initial points and candidates points.
-            Default: 0.
-        n_initial_points: int
-            Number of initial points randomly sampled. If new points
-            are requested and less than `n_initial_points` are observed,
-            the next points will also be sampled randomly instead of being
-            sampled from the parzen estimators.
-            Default: ``20``
-        maximizer: str
-            The optimizer for the acquisition function.
-            Can be one of ``{"random", "scipy", "differential_evolution"}``.
-            Defaults to 'random'
-        acquisition_func: str
-            Name of the acquisition function. Can be one of ``['ei', 'log_ei', 'pi', 'lcb']``.
-        **kwargs:
-            Arguments specific to each RoBO algorithms. These will be registered as part of
-            the algorithm's configuration.
-
-
-        BUG: log_ei seems to only work when batch size == 1.
-        """
         super().__init__(
             space=space,
             seed=seed,
@@ -85,7 +73,7 @@ class RoBO_ABLR(RoBO["OrionABLRWrapper"]):
         self.normalize_inputs = normalize_inputs
 
     def build_model(self):
-        return OrionABLRWrapper(
+        return ABLR(
             self.space,
             hparams=self.hparams,
             normalize_inputs=self.normalize_inputs,
@@ -119,96 +107,3 @@ class RoBO_ABLR(RoBO["OrionABLRWrapper"]):
 
     def suggest(self, num: int) -> list[Trial] | None:
         return super().suggest(num=num)
-
-
-class OrionABLRWrapper(ABLR, WrappedRoboModel):
-    """Orion wrapper around the ABLR algorithm."""
-
-    @property
-    def lower(self) -> np.ndarray:
-        return build_bounds(self.space)[0]
-
-    @property
-    def upper(self) -> np.ndarray:
-        return build_bounds(self.space)[1]
-
-    def set_state(self, state_dict: dict) -> None:
-        """Restore the state of the optimizer"""
-        random_state: dict = state_dict.pop("rng")
-        torch.random.set_rng_state(random_state["torch"])
-        self.load_state_dict(state_dict)
-
-    def state_dict(
-        self,
-        destination: str | None = None,
-        prefix: str = "",
-        keep_vars: bool = False,
-    ) -> dict:
-        state_dict = super().state_dict(destination, prefix, keep_vars)
-        state_dict
-        state_dict["rng"] = {
-            "torch": torch.random.get_rng_state(),
-        }
-        return state_dict
-
-    def seed(self, seed: int) -> None:
-        """Seed the state of the random number generator.
-
-        :param seed: Integer seed for the random number generator.
-
-        .. note:: This methods does nothing if the algorithm is deterministic.
-        """
-        # NOTE: No need to create a bunch of seeds, we only need the pytorch seed.
-        pytorch_seed = seed
-
-        torch.manual_seed(pytorch_seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(pytorch_seed)
-            # Not really necessary, makes code a LOT slower.
-            # torch.backends.cudnn.benchmark = False
-            # torch.backends.cudnn.deterministic = True
-
-    # TODO: Not yet adding warm-start support here.
-    # def warm_start(
-    #     self, warm_start_trials: Dict[ExperimentInfo, List[Trial]]
-    # ) -> None:
-    #     """ TODO: Warm-start the ABLR algorithm. """
-    #     return super().warm_start(warm_start_trials)
-
-
-def ablr_main():
-    from warmstart.tasks.quadratics import QuadraticsTask
-
-    task = QuadraticsTask()
-
-    model = ABLR(
-        task,
-        epochs=10,
-        batch_size=10_000,
-    )
-
-    # TODO: Should we rescale things? The samples wouldn't match their space though.
-    print(f"Task: {task}")
-
-    train_dataset = task.make_dataset(10_000)
-    X, y = train_dataset.tensors
-    # Just to get rid of the negative values in X.
-
-    model.train(X, y)
-    test_dataset = task.make_dataset(100)
-    test_x, test_y = test_dataset.tensors
-
-    with torch.no_grad():
-        y_pred_dist: Normal = model.predict_dist(test_x)
-        y_pred = y_pred_dist.sample()
-
-        for x, y_pred_i, y_true in zip(test_x, y_pred, test_y):
-            print(f"X: {x}, y_pred: {y_pred_i.item()}, y_true: {y_true.item():.3f}")
-        # test_loss = nn.MSELoss()(test_y, y_pred.reshape(test_y.shape))
-
-    # print(f"Test loss: {test_loss}")
-    exit()
-
-
-if __name__ == "__main__":
-    ablr_main()

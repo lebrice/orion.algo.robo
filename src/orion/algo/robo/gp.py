@@ -14,8 +14,8 @@ from robo.models.gaussian_process_mcmc import GaussianProcessMCMC
 from orion.algo.robo.base import (
     AcquisitionFnName,
     MaximizerName,
+    Model,
     RoBO,
-    WrappedRoboModel,
     build_bounds,
     build_kernel,
     build_prior,
@@ -179,7 +179,7 @@ class RoBO_GP_MCMC(RoBO_GP):
         )
 
 
-class OrionGaussianProcessWrapper(GaussianProcess, WrappedRoboModel):
+class OrionGaussianProcessWrapper(GaussianProcess, Model):
     """
     Wrapper for RoBO's Gaussian processes model
 
@@ -232,7 +232,7 @@ class OrionGaussianProcessWrapper(GaussianProcess, WrappedRoboModel):
         self.prior.rng.seed(seeds[1])
 
 
-class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC, WrappedRoboModel):
+class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC, Model):
     """
     Wrapper for RoBO's Gaussian processes with MCMC model
 

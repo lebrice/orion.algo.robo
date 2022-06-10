@@ -28,8 +28,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from orion.algo.robo.base import (
     AcquisitionFnName,
     MaximizerName,
+    Model,
     RoBO,
-    WrappedRoboModel,
     build_bounds,
     build_kernel,
     infer_n_hypers,
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 # pylint: disable = too-many-instance-attributes
-class OrionDNGOWrapper(DNGO, WrappedRoboModel):
+class OrionDNGOWrapper(DNGO, Model):
     """
     Wrapper for PyBNN's DNGO model
 
