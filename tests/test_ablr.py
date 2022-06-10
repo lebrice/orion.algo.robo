@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from test_integration import N_INIT, BaseRoBOTests
+from orion.testing.algo import TestPhase
+from test_integration import BaseRoBOTests
 
 from orion.algo.robo.ablr import RoBO_ABLR
+
+N_INIT = 10
 
 
 class TestRoBO_ABLR(BaseRoBOTests):
@@ -25,3 +28,11 @@ class TestRoBO_ABLR(BaseRoBOTests):
         },
         "normalize_inputs": True,
     }
+
+    # NOTE: ABLR runtime stays much better w.r.t. number of trials than other algos in ROBO, so
+    # we add a third phase with many more trials, in order to make the test suite more robust.
+    phases: ClassVar[list[TestPhase]] = [
+        TestPhase("random", 0, "space.sample"),
+        TestPhase("ablr", N_INIT, "suggest"),
+        TestPhase("ablr_scaling", N_INIT * 5, "suggest"),
+    ]
