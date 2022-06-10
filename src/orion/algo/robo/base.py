@@ -427,24 +427,9 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
         # pylint: disable = unused-argument
         def suggest_bo(num: int) -> list[Trial]:
             # pylint: disable = protected-access
-            assert self.robo is not None
             X, y = self.XY
             point = list(self.robo.choose_next(X, y))
             trial = tuple_to_trial(point, self.space)
             return [trial]
-            # TODO: Double-check, but I don't think this kind of thing is needed anymore.
-            # # If already suggested, give corresponding result to BO to sample another point
-            # if self.has_suggested(trial):
-            #     existing_trial = self.registry.get_existing(trial)
-            #     result = existing_trial.objective
-            #     if result is None:
-            #         results = []
-            #         for _, other_result in self._trials_info.values():
-            #             if other_result is not None:
-            #                 results.append(other_result["objective"])
-            #         result = Trial.Result(objective=numpy.array(results).mean())
-            #     self._bo_duplicates.append((trial, result))
-            #     # self.optimizer.tell([point], [result])
-            #     return []
 
         return self._suggest(num, suggest_bo)
