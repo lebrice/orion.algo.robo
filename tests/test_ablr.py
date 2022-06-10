@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import ClassVar
 
 from test_integration import N_INIT, BaseRoBOTests
