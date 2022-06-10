@@ -54,9 +54,7 @@ class ABLR(nn.Module, BaseModel, Model):
             feature_map = NeuralNetEncoder
         super().__init__()
         self.space: Space = space
-        self.task_id: int | None = None
-        # TODO: This might be OK since the algo has requirements for flattened reals, but need to
-        # double-check.
+        # NOTE: This is OK since the algo has requirements for flattened reals.
         self.input_dims = len(self.space)
         if isinstance(hparams, dict):
             hparams = self.HParams(**hparams)
@@ -72,11 +70,9 @@ class ABLR(nn.Module, BaseModel, Model):
         self.beta = Parameter(torch.as_tensor([self.hparams.beta], dtype=torch.float))
 
         # NOTE: The "'LBFGS' object doesn't have a _params attribute" bug is fixed with the
-        # PatchedLBFGS class below.
+        # PatchedLBFGS class.
         # self.optimizer = torch.optim.LBFGS(self.parameters(), lr=learning_rate)
         self.optimizer = PatchedLBFGS(self.parameters(), lr=self.hparams.learning_rate)
-        self.loss_fn = nn.MSELoss()
-
         self._predict_dist: Callable[[Tensor], Normal] | None = None
 
         self.normalize_inputs = normalize_inputs
@@ -417,9 +413,9 @@ class ABLR(nn.Module, BaseModel, Model):
             )
             return (
                 torch.zeros(1),  # Loss
-                lambda x: Normal(
+                lambda _: Normal(
                     loc=y_t.mean(),
-                    variance=torch.max(y_t.var(), torch.ones_like(y_t) * 1e-7),
+                    scale=torch.max(y_t.var(), torch.ones_like(y_t) * 1e-7),
                 ),
             )
 
