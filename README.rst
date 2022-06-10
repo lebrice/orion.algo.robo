@@ -29,36 +29,35 @@ RoBO Wrapper for Oríon
 
 ----
 
-This wrapper provides access through `Oríon`_ to several Bayesian optimization algorithms 
+This wrapper provides access through `Oríon`_ to several Bayesian optimization algorithms
 in the library `RoBO`_.
 
-This ``orion.algo`` plugin was generated with `Cookiecutter`_ along with `@Epistimio`_'s `cookiecutter-orion.algo`_ template.
+This ``orion.algo`` plugin was generated with `Cookiecutter`_ along with `@Epistimio`_'s
+`cookiecutter-orion.algo`_ template.
 
 Installation
 ------------
 
 The RoBO wrapper is currently only supported on Linux.
 
-Before installing RoBO, make sure you have ``libeigen`` and ``swig`` installed. 
+Before installing RoBO, make sure you have ``libeigen`` and ``swig`` installed.
 On ubuntu, you can install them with ``apt-get``, like so:
 
 .. code-block:: console
 
     $ sudo apt-get install libeigen3-dev swig
 
-Then, the repo can be installed, like so:
-
+The RoBO wrapper can then be installed, either from source, like so:
 
 .. code-block:: console
 
     $ pip install git+https://github.com/Epistimio/orion.algo.robo
 
-..  TODO: Can we get this to be installable with PyPI even with links? How does Benzina do it?
-.. Finally, you can install this package using PyPI
+Or from PyPI:
 
-.. .. code-block:: console
+.. code-block:: console
 
-..     $ pip install orion.algo.robo
+    $ pip install orion.algo.robo
 
 
 Contribute or Ask
@@ -79,9 +78,9 @@ Citation
 --------
 
 If you use this wrapper for your publications, please cite both
-`RoBO <https://github.com/automl/RoBO#citing-robo>`__ and 
+`RoBO <https://github.com/automl/RoBO#citing-robo>`__ and
 `Oríon <https://github.com/epistimio/orion#citation>`__. Please also cite
-the papers of the algorithms you used, such as DNGO or BOHAMIANN. See 
+the papers of the algorithms you used, such as DNGO or BOHAMIANN. See
 the documentation of the algorithms to find corresponding original papers.
 
 License
