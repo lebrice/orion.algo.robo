@@ -9,7 +9,7 @@ from torch.distributions import Normal as NormalBase
 
 C = TypeVar("C", int, float, Tensor)
 
-
+# pylint: disable=missing-class-docstring,abstract-method
 class Normal(NormalBase):
     def __init__(self, loc: Tensor, scale: Tensor, validate_args: bool | None = None):
         super().__init__(loc=loc, scale=scale, validate_args=validate_args)

@@ -18,6 +18,7 @@ from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO
 logger = get_logger(__file__)
 
 
+# pylint: disable=unsubscriptable-object
 class RoBO_ABLR(RoBO[ABLR]):
     """Implements the ABLR[1] algorithm, using RoBO.
 
@@ -71,6 +72,7 @@ class RoBO_ABLR(RoBO[ABLR]):
         self.hparams = hparams
         self.normalize_inputs = normalize_inputs
 
+    # pylint: disable=missing-function-docstring
     def build_model(self) -> ABLR:
         return ABLR(
             self.space,
@@ -78,6 +80,7 @@ class RoBO_ABLR(RoBO[ABLR]):
             normalize_inputs=self.normalize_inputs,
         )
 
+    # pylint: disable=missing-function-docstring
     def seed_rng(self, seed: int) -> None:
         # Seed the random + numpy + RoBo-specific RNG via the base class.
         super().seed_rng(seed)
@@ -87,6 +90,7 @@ class RoBO_ABLR(RoBO[ABLR]):
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(torch_seed)
 
+    # pylint: disable=missing-function-docstring
     @property
     def state_dict(self) -> dict:
         state = super().state_dict
@@ -95,6 +99,7 @@ class RoBO_ABLR(RoBO[ABLR]):
             state["torch_cuda_rng"] = torch.cuda.random.get_rng_state_all()
         return state
 
+    # pylint: disable=missing-function-docstring
     def set_state(self, state_dict: dict):
         super().set_state(state_dict)
 
