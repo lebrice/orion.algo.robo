@@ -1,14 +1,21 @@
 """
 Wrapper for RoBO with GP (and MCMC)
 """
+from __future__ import annotations
+
+from typing import Sequence
 
 import numpy
+from orion.algo.space import Space
 from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
 from robo.models.gaussian_process import GaussianProcess
 from robo.models.gaussian_process_mcmc import GaussianProcessMCMC
 
 from orion.algo.robo.base import (
+    AcquisitionFnName,
+    MaximizerName,
     RoBO,
+    WrappedRoboModel,
     build_bounds,
     build_kernel,
     build_prior,
@@ -50,30 +57,30 @@ class RoBO_GP(RoBO):
 
     def __init__(
         self,
-        space,
-        seed=0,
-        n_initial_points=20,
-        maximizer="random",
-        acquisition_func="log_ei",
-        normalize_input=True,
-        normalize_output=False,
+        space: Space,
+        seed: int | Sequence[int] | None = 0,
+        n_initial_points: int = 20,
+        maximizer: MaximizerName = "random",
+        acquisition_func: AcquisitionFnName = "log_ei",
+        normalize_input: bool = True,
+        normalize_output: bool = False,
     ):
-
-        super(RoBO_GP, self).__init__(
-            space,
+        super().__init__(
+            space=space,
+            seed=seed,
+            n_initial_points=n_initial_points,
             maximizer=maximizer,
             acquisition_func=acquisition_func,
-            normalize_input=normalize_input,
-            normalize_output=normalize_output,
-            n_initial_points=n_initial_points,
-            seed=seed,
         )
+        self.normalize_input = normalize_input
+        self.normalize_output = normalize_output
 
-    def _initialize_model(self):
+    def build_model(self) -> OrionGaussianProcessWrapper:
+        """Builds the model for the optimisation."""
         lower, upper = build_bounds(self.space)
         kernel = build_kernel(lower, upper)
         prior = build_prior(kernel)
-        self.model = OrionGaussianProcessWrapper(
+        return OrionGaussianProcessWrapper(
             kernel,
             prior=prior,
             rng=None,
@@ -84,7 +91,7 @@ class RoBO_GP(RoBO):
         )
 
 
-class RoBO_GP_MCMC(RoBO):
+class RoBO_GP_MCMC(RoBO_GP):
     """
     Wrapper for RoBO with Gaussian processes using Markov chain Monte Carlo
     to marginalize out hyperparameters of the Bayesian Optimization.
@@ -117,7 +124,7 @@ class RoBO_GP_MCMC(RoBO):
     chain_length: int
         The length of the MCMC chain. We start ``n_hypers`` walker for chain_length
         steps and we use the last sample in the chain as a hyperparameter sample.
-        ``n_hypers`` is automatically infered based on dimensionality of the search space.
+        ``n_hypers`` is automatically inferred based on dimensionality of the search space.
         Defaults to 2000.
     burnin_steps: int
         The number of burnin steps before the actual MCMC sampling starts.
@@ -127,18 +134,17 @@ class RoBO_GP_MCMC(RoBO):
 
     def __init__(
         self,
-        space,
-        seed=0,
-        n_initial_points=20,
-        maximizer="random",
-        acquisition_func="log_ei",
-        normalize_input=True,
-        normalize_output=False,
+        space: Space,
+        seed: int | Sequence[int] | None = 0,
+        n_initial_points: int = 20,
+        maximizer: MaximizerName = "random",
+        acquisition_func: AcquisitionFnName = "log_ei",
+        normalize_input: bool = True,
+        normalize_output: bool = False,
         chain_length=2000,
         burnin_steps=2000,
     ):
-
-        super(RoBO_GP_MCMC, self).__init__(
+        super().__init__(
             space,
             seed=seed,
             n_initial_points=n_initial_points,
@@ -146,20 +152,20 @@ class RoBO_GP_MCMC(RoBO):
             acquisition_func=acquisition_func,
             normalize_input=normalize_input,
             normalize_output=normalize_output,
-            chain_length=chain_length,
-            burnin_steps=burnin_steps,
         )
+        self.chain_length = chain_length
+        self.burnin_steps = burnin_steps
 
-    def build_acquisition_func(self):
+    def build_acquisition_func(self) -> MarginalizationGPMCMC:
         """Build a marginalized acquisition function with MCMC."""
-        return MarginalizationGPMCMC(super(RoBO_GP_MCMC, self).build_acquisition_func())
+        return MarginalizationGPMCMC(super().build_acquisition_func())
 
-    def _initialize_model(self):
+    def build_model(self) -> OrionGaussianProcessMCMCWrapper:
         lower, upper = build_bounds(self.space)
         kernel = build_kernel(lower, upper)
         prior = build_prior(kernel)
         n_hypers = infer_n_hypers(kernel)
-        self.model = OrionGaussianProcessMCMCWrapper(
+        return OrionGaussianProcessMCMCWrapper(
             kernel,
             prior=prior,
             n_hypers=n_hypers,
@@ -173,7 +179,7 @@ class RoBO_GP_MCMC(RoBO):
         )
 
 
-class OrionGaussianProcessWrapper(GaussianProcess):
+class OrionGaussianProcessWrapper(GaussianProcess, WrappedRoboModel):
     """
     Wrapper for RoBO's Gaussian processes model
 
@@ -203,14 +209,14 @@ class OrionGaussianProcessWrapper(GaussianProcess):
 
     """
 
-    def set_state(self, state_dict):
+    def set_state(self, state_dict: dict) -> None:
         """Restore the state of the optimizer"""
         self.rng.set_state(state_dict["model_rng_state"])
         self.prior.rng.set_state(state_dict["prior_rng_state"])
         self.kernel.set_parameter_vector(state_dict["model_kernel_parameter_vector"])
         self.noise = state_dict["noise"]
 
-    def state_dict(self):
+    def state_dict(self) -> dict:
         """Return the current state of the optimizer so that it can be restored"""
         return {
             "prior_rng_state": self.prior.rng.get_state(),
@@ -219,14 +225,14 @@ class OrionGaussianProcessWrapper(GaussianProcess):
             "noise": self.noise,
         }
 
-    def seed(self, seed):
+    def seed(self, seed: int | Sequence[int] | None) -> None:
         """Seed all internal RNGs"""
-        seeds = numpy.random.RandomState(seed).randint(1, 10e8, size=2)
+        seeds = numpy.random.RandomState(seed).randint(1, int(10e8), size=2)
         self.rng.seed(seeds[0])
         self.prior.rng.seed(seeds[1])
 
 
-class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
+class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC, WrappedRoboModel):
     """
     Wrapper for RoBO's Gaussian processes with MCMC model
 
@@ -257,7 +263,7 @@ class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
 
     """
 
-    def set_state(self, state_dict):
+    def set_state(self, state_dict: dict) -> None:
         """Restore the state of the optimizer"""
         self.rng.set_state(state_dict["model_rng_state"])
         self.prior.rng.set_state(state_dict["prior_rng_state"])
@@ -269,7 +275,7 @@ class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
             delattr(self, "p0")
             self.burned = False
 
-    def state_dict(self):
+    def state_dict(self) -> dict:
         """Return the current state of the optimizer so that it can be restored"""
         s_dict = {
             "prior_rng_state": self.prior.rng.get_state(),
@@ -281,8 +287,8 @@ class OrionGaussianProcessMCMCWrapper(GaussianProcessMCMC):
 
         return s_dict
 
-    def seed(self, seed):
+    def seed(self, seed: int | Sequence[int] | None) -> None:
         """Seed all internal RNGs"""
-        seeds = numpy.random.RandomState(seed).randint(1, 10e8, size=2)
+        seeds = numpy.random.RandomState(seed).randint(1, int(10e8), size=2)
         self.rng.seed(seeds[0])
         self.prior.rng.seed(seeds[1])

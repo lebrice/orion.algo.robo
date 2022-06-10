@@ -1,10 +1,16 @@
 """
 Wrapper for RoBO with Random Forest
 """
+from __future__ import annotations
+
+from typing import Sequence
+
+import numpy
 import pyrfr.regression as reg
+from orion.algo.space import Space
 from robo.models.random_forest import RandomForest
 
-from orion.algo.robo.base import RoBO, build_bounds
+from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO, build_bounds
 
 
 class RoBO_RandomForest(RoBO):
@@ -47,34 +53,34 @@ class RoBO_RandomForest(RoBO):
 
     def __init__(
         self,
-        space,
-        seed=0,
+        space: Space,
+        seed: int | Sequence[int] | None = 0,
         n_initial_points=20,
-        maximizer="random",
-        acquisition_func="log_ei",
-        num_trees=30,
-        do_bootstrapping=True,
-        n_points_per_tree=0,
-        compute_oob_error=False,
-        return_total_variance=True,
+        maximizer: MaximizerName = "random",
+        acquisition_func: AcquisitionFnName = "log_ei",
+        num_trees: int = 30,
+        do_bootstrapping: bool = True,
+        n_points_per_tree: int = 0,
+        compute_oob_error: bool = False,
+        return_total_variance: bool = True,
     ):
 
-        super(RoBO_RandomForest, self).__init__(
+        super().__init__(
             space,
             maximizer=maximizer,
             acquisition_func=acquisition_func,
-            num_trees=num_trees,
-            do_bootstrapping=do_bootstrapping,
-            n_points_per_tree=n_points_per_tree,
-            compute_oob_error=compute_oob_error,
-            return_total_variance=return_total_variance,
             n_initial_points=n_initial_points,
             seed=seed,
         )
+        self.num_trees = num_trees
+        self.do_bootstrapping = do_bootstrapping
+        self.n_points_per_tree = n_points_per_tree
+        self.compute_oob_error = compute_oob_error
+        self.return_total_variance = return_total_variance
 
-    def _initialize_model(self):
+    def build_model(self):
         lower, upper = build_bounds(self.space)
-        self.model = OrionRandomForestWrapper(
+        return OrionRandomForestWrapper(
             rng=None,
             num_trees=self.num_trees,
             do_bootstrapping=self.do_bootstrapping,
@@ -123,7 +129,7 @@ class OrionRandomForestWrapper(RandomForest):
         rng=None,
     ):
 
-        super(OrionRandomForestWrapper, self).__init__(
+        super().__init__(
             num_trees=num_trees,
             do_bootstrapping=do_bootstrapping,
             n_points_per_tree=n_points_per_tree,
@@ -135,25 +141,23 @@ class OrionRandomForestWrapper(RandomForest):
         self.lower = lower
         self.upper = upper
 
-    def train(self, X, y, **kwargs):
+    def train(self, X: numpy.ndarray, y: numpy.ndarray, **kwargs):
         """
         Seeds the RNG of Random Forest before calling parent's train().
         """
         # NOTE: We cannot save `reg_rng` state so instead we control it
         #       with random integers sampled from `rng` and keep track of `rng` state.
-        self.reg_rng = reg.default_random_engine(int(self.rng.randint(10e8)))
-        super(OrionRandomForestWrapper, self).train(X, y, **kwargs)
+        self.reg_rng = reg.default_random_engine(int(self.rng.randint(int(10e8))))
+        super().train(X, y, **kwargs)
 
-    def predict(self, X_test, **kwargs):
-        """
-        Seeds the RNG of Random Forest before calling parent's predict().
-        """
+    def predict(self, X_test: numpy.ndarray, **kwargs):
+        # Seeds the RNG of Random Forest before calling parent's predict().
         # NOTE: We cannot save `reg_rng` state so instead we control it
         #       with random integers sampled from `rng` and keep track of `rng` state.
-        self.reg_rng = reg.default_random_engine(int(self.rng.randint(10e8)))
-        return super(OrionRandomForestWrapper, self).predict(X_test, **kwargs)
+        self.reg_rng = reg.default_random_engine(int(self.rng.randint(int(10e8))))
+        return super().predict(X_test, **kwargs)
 
-    def set_state(self, state_dict):
+    def set_state(self, state_dict: dict) -> None:
         """Restore the state of the optimizer"""
         self.rng.set_state(state_dict["model_rng_state"])
 
