@@ -50,12 +50,8 @@ class ABLR(nn.Module, BaseModel, Model):
         hparams: ABLR.HParams | dict | None = None,
         normalize_inputs: bool = True,
     ):
-        if feature_map is None:
-            feature_map = NeuralNetEncoder
         super().__init__()
         self.space: Space = space
-        # NOTE: This is OK since the algo has requirements for flattened reals.
-        self.input_dims = len(self.space)
         if isinstance(hparams, dict):
             hparams = self.HParams(**hparams)
         self.hparams = hparams or self.HParams()
@@ -77,10 +73,12 @@ class ABLR(nn.Module, BaseModel, Model):
 
         self.normalize_inputs = normalize_inputs
 
+        # NOTE: This is OK since the algo has requirements for flattened reals.
+        input_dims = len(self.space)
         self.x_mean: Tensor
         self.x_var: Tensor
-        self.register_buffer("x_mean", torch.zeros([self.input_dims]))
-        self.register_buffer("x_var", torch.ones([self.input_dims]))
+        self.register_buffer("x_mean", torch.zeros([input_dims]))
+        self.register_buffer("x_var", torch.ones([input_dims]))
 
         self.y_mean: Tensor
         self.y_var: Tensor
