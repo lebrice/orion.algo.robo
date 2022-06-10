@@ -10,7 +10,7 @@ import warnings
 from dataclasses import dataclass
 from functools import partial, singledispatch
 from logging import getLogger as get_logger
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, OrderedDict, TypeVar
 
 import numpy as np
 import torch
@@ -99,15 +99,16 @@ class ABLR(nn.Module, BaseModel, Model):
     def upper(self) -> np.ndarray:
         return build_bounds(self.space)[1]
 
-    def state_dict(
+    def state_dict(  # type: ignore
         self,
-        prefix: str = "",
+        destination=None,
+        prefix="",
         keep_vars: bool = False,
-    ):
-        state_dict: dict[str, Any] = super().state_dict(
-            prefix=prefix, keep_vars=keep_vars
+    ) -> OrderedDict[str, Tensor | Any]:
+        state_dict: OrderedDict[str, Any] = super().state_dict(
+            destination=destination, prefix=prefix, keep_vars=keep_vars  # type: ignore
         )
-        state_dict["rng"] = {"torch": torch.random.get_rng_state()}
+        state_dict["rng"] = torch.random.get_rng_state()
         state_dict["optimizer"] = self.optimizer.state_dict()
         return state_dict
 
@@ -115,12 +116,12 @@ class ABLR(nn.Module, BaseModel, Model):
         optim_state: dict = state_dict.pop("optimizer")
         self.optimizer.load_state_dict(optim_state)
         assert self.optimizer._params is not None
-        return super().load_state_dict(state_dict, strict=strict)
+        rng: Tensor = state_dict.pop("rng")
+        torch.random.set_rng_state(rng)
+        return super().load_state_dict(state_dict, strict=strict)  # type: ignore
 
     def set_state(self, state_dict: dict) -> None:
-        """Restore the state of the optimizer"""
-        random_state: dict = state_dict.pop("rng")
-        torch.random.set_rng_state(random_state["torch"])
+        """Orion hook used to restore the state of the algorithm."""
         self.load_state_dict(state_dict)
 
     def seed(self, seed: int) -> None:
@@ -130,15 +131,8 @@ class ABLR(nn.Module, BaseModel, Model):
 
         .. note:: This methods does nothing if the algorithm is deterministic.
         """
-        # NOTE: No need to create a bunch of seeds, we only need the pytorch seed.
-        pytorch_seed = seed
-
-        torch.manual_seed(pytorch_seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(pytorch_seed)
-            # NOTE: Not really necessary, makes code a LOT slower.
-            # torch.backends.cudnn.benchmark = False
-            # torch.backends.cudnn.deterministic = True
+        # No need to do anything here really, since the ROBO_ABLR class already seeds all the
+        # pytorch RNG.
 
     def predict(self, X_test: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Return the predictive mean and variance for the given points."""

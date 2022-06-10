@@ -368,7 +368,7 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
             self._initialize()
         return super().observe(trials)
 
-    def suggest(self, num: int) -> list[Trial] | None:
+    def suggest(self, num: int) -> list[Trial]:
         """Suggest a `num`ber of new sets of parameters.
 
         Perform a step towards negative gradient and suggest that point.

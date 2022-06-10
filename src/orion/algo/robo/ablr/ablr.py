@@ -11,7 +11,6 @@ from typing import Sequence
 
 import torch
 from orion.algo.space import Space
-from orion.core.worker.trial import Trial
 
 from orion.algo.robo.ablr.ablr_model import ABLR
 from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO
@@ -72,7 +71,7 @@ class RoBO_ABLR(RoBO[ABLR]):
         self.hparams = hparams
         self.normalize_inputs = normalize_inputs
 
-    def build_model(self):
+    def build_model(self) -> ABLR:
         return ABLR(
             self.space,
             hparams=self.hparams,
@@ -80,7 +79,9 @@ class RoBO_ABLR(RoBO[ABLR]):
         )
 
     def seed_rng(self, seed: int) -> None:
+        # Seed the random + numpy + RoBo-specific RNG via the base class.
         super().seed_rng(seed)
+        # Additionally seed the PyTorch RNG.
         torch_seed = self.rng.randint(0, int(1e8))
         torch.random.manual_seed(torch_seed)
         if torch.cuda.is_available():
@@ -96,6 +97,7 @@ class RoBO_ABLR(RoBO[ABLR]):
 
     def set_state(self, state_dict: dict):
         super().set_state(state_dict)
+
         torch_rng = state_dict["torch_rng"]
         torch.random.set_rng_state(torch_rng)
 
@@ -104,6 +106,3 @@ class RoBO_ABLR(RoBO[ABLR]):
         if torch.cuda.is_available() and "torch_cuda_rng" in state_dict:
             torch_cuda_rng = state_dict["torch_cuda_rng"]
             torch.cuda.random.set_rng_state_all(torch_cuda_rng)
-
-    def suggest(self, num: int) -> list[Trial] | None:
-        return super().suggest(num=num)
