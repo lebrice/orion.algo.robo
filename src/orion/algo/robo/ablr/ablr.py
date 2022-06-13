@@ -18,7 +18,6 @@ from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO
 logger = get_logger(__file__)
 
 
-# pylint: disable=unsubscriptable-object
 class RoBO_ABLR(RoBO[ABLR]):
     """Implements the ABLR[1] algorithm, using RoBO.
 

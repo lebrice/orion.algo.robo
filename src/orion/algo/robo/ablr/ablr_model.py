@@ -114,12 +114,7 @@ class ABLR(nn.Module, BaseModel, Model):
         self.load_state_dict(state_dict)
 
     def seed(self, seed: int) -> None:
-        """Seed the state of the random number generator.
-
-        :param seed: Integer seed for the random number generator.
-
-        .. note:: This methods does nothing if the algorithm is deterministic.
-        """
+        """no-op. RoBO_ABLR is expected to seed all pytorch RNGs. """
         # No need to do anything here really, since the ROBO_ABLR class already seeds all the
         # pytorch RNG.
 
@@ -351,7 +346,7 @@ class ABLR(nn.Module, BaseModel, Model):
 
         def predict_mean(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
-            # TODO: Adding the .T on phi_t_star below, since there seems to be some bugs in the
+            # NOTE: Adding the .T on phi_t_star below, since there seems to be some bugs in the
             # shapes..
             mean = r_t * torch.chain_matmul(e_t.T, l_t_inv, phi_t_star.T)
             return mean.reshape([new_x.shape[0], 1])
@@ -382,7 +377,6 @@ class ABLR(nn.Module, BaseModel, Model):
         # N <= D: Fewer points than dimensions.
         # (Following the supplementary material)
 
-        # k_t = r_t * phi_t @ phi_t.T + torch.eye(n)
         try:
             k_t = torch.eye(n) + r_t * phi_t @ phi_t.T
             E_t = try_get_cholesky(k_t)
