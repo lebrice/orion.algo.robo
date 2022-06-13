@@ -350,8 +350,11 @@ class OrionDNGOWrapper(DNGO, Model):
 
             self.models.append(model)
 
-    @BaseModel._check_shapes_predict  # type: ignore  pylint: disable=protected-access
-    def predict(self, X_test: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    # pylint: disable=protected-access
+    @BaseModel._check_shapes_predict  # type: ignore
+    def predict(
+        self, X_test: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:  # pylint: disable=unsubscriptable-object
         r"""
         Returns the predictive mean and variance of the objective function at
         the given test points.
