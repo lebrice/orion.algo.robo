@@ -27,7 +27,7 @@ from orion.algo.robo.ablr.encoders import Encoder, NeuralNetEncoder
 from orion.algo.robo.ablr.normal import Normal
 from orion.algo.robo.base import Model, build_bounds
 
-T = TypeVar("T", np.ndarray, Tensor)
+T = TypeVar("T", np.ndarray, Tensor, Normal)
 logger = get_logger(__name__)
 
 
@@ -114,7 +114,7 @@ class ABLR(nn.Module, BaseModel, Model):
         self.load_state_dict(state_dict)
 
     def seed(self, seed: int) -> None:
-        """no-op. RoBO_ABLR is expected to seed all pytorch RNGs. """
+        """no-op. RoBO_ABLR is expected to seed all pytorch RNGs."""
         # No need to do anything here really, since the ROBO_ABLR class already seeds all the
         # pytorch RNG.
 
@@ -134,6 +134,7 @@ class ABLR(nn.Module, BaseModel, Model):
                 # NOTE: This gets overwritten every time a new point is observed, so we know for
                 # sure that this is always the most up-to-date predictions.
                 _, self._predict_dist = self(self.X, self.y)
+            x_test = torch.as_tensor(x_test).type_as(self.x_mean)
             y_pred_dist = self._predict_dist(x_test)
         return y_pred_dist
 
@@ -174,10 +175,10 @@ class ABLR(nn.Module, BaseModel, Model):
         )
 
         def predict_normalized(x_test: Tensor | np.ndarray) -> Normal:
-            x_test = torch.as_tensor(x_test, dtype=torch.float)
+            x_test = torch.as_tensor(x_test).type_as(self.x_mean)
             if self.normalize_inputs:
                 x_test = self._normalize_x(x_test)
-            y_pred_dist = predictive_distribution_fn(x_test)
+            y_pred_dist = predictive_distribution_fn(x_test)  # type: ignore
             y_pred_dist = self._unnormalize_y(y_pred_dist)
             return y_pred_dist
 
@@ -221,10 +222,15 @@ class ABLR(nn.Module, BaseModel, Model):
             do_optimize=bound_args.arguments["do_optimize"],
         )
 
+    # pylint: disable=unused-argument
     def _train_robo(
         self, X: np.ndarray, y: np.ndarray, do_optimize: bool | None = None
     ) -> None:
-        """Training method for the algorithm, as a RoBO Model subclass."""
+        """Training method for the algorithm, as a RoBO Model subclass.
+
+        NOTE: This do_optimize parameter is inherited from the robo BaseModel class but isn't
+        used here.
+        """
 
         if X is None or y is None:
             raise RuntimeError(
@@ -232,7 +238,6 @@ class ABLR(nn.Module, BaseModel, Model):
             )
 
         # Save the dataset so we can use it to predict the mean and variance later.
-        # NOTE: This do_optimize isn't used, but is a parameter of the Robo base class.
         self.X = torch.as_tensor(X, dtype=torch.float)
         self.y = torch.as_tensor(y, dtype=torch.float).reshape([-1])
         self.x_mean = self.X.mean(0)
@@ -349,7 +354,7 @@ class ABLR(nn.Module, BaseModel, Model):
             phi_t_star = self.feature_map(new_x)
             # NOTE: Adding the .T on phi_t_star below, since there seems to be some bugs in the
             # shapes..
-            mean = r_t * torch.chain_matmul(e_t.T, l_t_inv, phi_t_star.T)
+            mean = r_t * torch.linalg.multi_dot(e_t.T, l_t_inv, phi_t_star.T)
             return mean.reshape([new_x.shape[0], 1])
 
         def predict_variance(new_x: Tensor) -> Tensor:
@@ -406,8 +411,8 @@ class ABLR(nn.Module, BaseModel, Model):
 
         def _predict_mean(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
-            return r_t * torch.chain_matmul(
-                # BUG: Still debugging some shape errors.
+            return r_t * torch.linalg.multi_dot(
+                # Note: Still debugging some shape errors.
                 # (Unpacked the (E_t_inv @ y_t).T term)
                 y_t.T,  # [1, 40]
                 E_t_inv,  # [40, 40]
@@ -419,7 +424,7 @@ class ABLR(nn.Module, BaseModel, Model):
         def _predict_variance(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
             y_t_norm = (y_t**2).sum()
-            second_term = torch.chain_matmul(
+            second_term = torch.linalg.multi_dot(
                 E_t_inv,
                 phi_t,
                 phi_t_star.T,
@@ -453,8 +458,6 @@ class ABLR(nn.Module, BaseModel, Model):
 
         return negative_log_marginal_likelihood, _predictive_distribution
 
-    T = TypeVar("T", Tensor, np.ndarray, Normal)
-
     def _normalize_x(self, x: T) -> T:
         x -= self.x_mean
         x = x / self.x_var
@@ -486,7 +489,7 @@ class PatchedLBFGS(torch.optim.LBFGS):
         super().__init__(*args, **kwargs)
 
     def __getstate__(self):
-        state = super().__getstate__()
+        state = super().__getstate__()  # type: ignore
         state["_params"] = self._params
         state["_numel_cache"] = self._numel_cache
         return state
