@@ -258,7 +258,7 @@ class ABLR(nn.Module, BaseModel, Model):
         # valid_dataset = dataset[n_train:]
         # valid_dataloader = DataLoader(valid_dataset, batch_size=100, shuffle=True)
 
-        outer_pbar = tqdm.tqdm(range(self.hparams.epochs), desc="Epoch")
+        outer_pbar = tqdm.tqdm(range(self.hparams.epochs), desc="Epoch", disable=True)
         for epoch in outer_pbar:
             logger.debug("Start of epoch %s", epoch)
             with tqdm.tqdm(train_dataloader, position=1, leave=False) as inner_pbar:
