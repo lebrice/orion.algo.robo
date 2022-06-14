@@ -412,22 +412,26 @@ class ABLR(nn.Module, BaseModel, Model):
         def _predict_mean(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
             return r_t * torch.linalg.multi_dot(
-                # Note: Still debugging some shape errors.
-                # (Unpacked the (E_t_inv @ y_t).T term)
-                y_t.T,  # [1, 40]
-                E_t_inv,  # [40, 40]
-                E_t_inv.T,  # [40, 40]
-                phi_t,  # [40, 50]
-                phi_t_star.T,  # [50, N]
+                [
+                    # Note: Still debugging some shape errors.
+                    # (Unpacked the (E_t_inv @ y_t).T term)
+                    y_t.T,  # [1, 40]
+                    E_t_inv,  # [40, 40]
+                    E_t_inv.T,  # [40, 40]
+                    phi_t,  # [40, 50]
+                    phi_t_star.T,  # [50, N]
+                ],
             )
 
         def _predict_variance(new_x: Tensor) -> Tensor:
             phi_t_star = self.feature_map(new_x)
             y_t_norm = (y_t**2).sum()
             second_term = torch.linalg.multi_dot(
-                E_t_inv,
-                phi_t,
-                phi_t_star.T,
+                [
+                    E_t_inv,
+                    phi_t,
+                    phi_t_star.T,
+                ]
             )
             variance: Tensor = (1 / self.alpha) * (
                 y_t_norm - r_t * (second_term**2).sum(0)
