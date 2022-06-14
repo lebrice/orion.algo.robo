@@ -66,7 +66,6 @@ class RandomFourierBasisEncoder(Encoder):
         d = self.out_features
         # The "bandwidth of the approximated radial basis function kernel".
         self.kernel_bandwidth = Parameter(torch.Tensor([kernel_bandwidth]))
-        # TODO: Should these be re-sampled for each forward pass?
         self.U = torch.randn([d, p])
         self.b = torch.rand([d]) * 2 * np.pi
         # Store the constants, so we don't recompute them all the time.
