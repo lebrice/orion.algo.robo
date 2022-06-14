@@ -13,6 +13,7 @@ import torch
 from orion.algo.space import Space
 
 from orion.algo.robo.ablr.ablr_model import ABLR
+from orion.algo.robo.ablr.encoders import Encoder, NeuralNetEncoder
 from orion.algo.robo.base import AcquisitionFnName, MaximizerName, RoBO
 
 logger = get_logger(__file__)
@@ -60,6 +61,7 @@ class RoBO_ABLR(RoBO[ABLR]):
         acquisition_func: AcquisitionFnName = "ei",
         hparams: ABLR.HParams | dict | None = None,
         normalize_inputs: bool = True,
+        encoder_type: type[Encoder] = NeuralNetEncoder,
     ):
         super().__init__(
             space=space,
@@ -70,12 +72,14 @@ class RoBO_ABLR(RoBO[ABLR]):
         )
         self.hparams = hparams
         self.normalize_inputs = normalize_inputs
+        self.encoder_type = encoder_type
 
     # pylint: disable=missing-function-docstring
     def build_model(self) -> ABLR:
         return ABLR(
             self.space,
             hparams=self.hparams,
+            feature_map=self.encoder_type,
             normalize_inputs=self.normalize_inputs,
         )
 
