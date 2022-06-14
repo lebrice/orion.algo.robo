@@ -149,14 +149,15 @@ class ABLR(nn.Module, BaseModel, Model):
         x_train = torch.as_tensor(x_train)
         y_train = torch.as_tensor(y_train)
         # TODO: Do we normalize the portion that has the contextual information?
-        if all(self.x_mean == 0):
-            self.x_mean = x_train.mean(0)
-        if all(self.x_var == 1):
-            x_var = x_train.var(0)
-            # minimum variance, because the context vectors are actually always
-            # the same, so the variance along that dimension is 0, which makes
-            # NaN values in the normalized inputs.
-            self.x_var = torch.maximum(x_var, torch.zeros_like(x_var) + 1e-5)
+        self.x_mean = x_train.mean(0)
+        # minimum variance, because the context vectors are actually always
+        # the same, so the variance along that dimension is 0, which makes
+        # NaN values in the normalized inputs.
+        x_var = x_train.var(0)
+        x_var[x_var.isnan()] = 1e-6
+        x_var[x_var < 1e-6] = 1e-6
+        self.x_var = x_var
+
         if self.y_mean == 0:
             self.y_mean = y_train.mean(0)
         if self.y_var == 1:
