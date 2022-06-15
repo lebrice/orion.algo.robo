@@ -33,7 +33,6 @@ class TestRoBO_ABLR(BaseRoBOTests):
             "epochs": 1,
         },
         "encoder_type": NeuralNetEncoder,
-        "normalize_inputs": True,
     }
 
     # NOTE: ABLR runtime stays much better w.r.t. number of trials than other algos in ROBO, so

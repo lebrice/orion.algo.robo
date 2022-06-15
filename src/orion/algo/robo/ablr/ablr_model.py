@@ -6,12 +6,11 @@
 """
 from __future__ import annotations
 
-import inspect
 import warnings
 from dataclasses import dataclass
 from functools import partial
 from logging import getLogger as get_logger
-from typing import Any, Callable, OrderedDict, TypeVar, overload
+from typing import Any, Callable, OrderedDict, TypeVar
 
 import numpy as np
 import torch
@@ -21,62 +20,39 @@ from pybnn.base_model import BaseModel
 from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 from torch.utils.data import DataLoader, TensorDataset
-from typing_extensions import Protocol
 
 from orion.algo.robo.ablr.encoders import Encoder, NeuralNetEncoder
 from orion.algo.robo.ablr.normal import Normal
+from orion.algo.robo.ablr.patched_lbfgs import PatchedLBFGS
+from orion.algo.robo.ablr.utils import (
+    minimum_variance,
+    try_get_cholesky,
+    try_get_cholesky_inverse,
+)
 from orion.algo.robo.base import Model, build_bounds
 
 T = TypeVar("T", np.ndarray, Tensor, Normal)
 logger = get_logger(__name__)
 
 
-# pylint: disable=too-many-instance-attributes
-class ABLR(nn.Module, BaseModel, Model):
-    """Surrogate model for a single task."""
-
-    @dataclass
-    class HParams:
-        """Hyper-Parameters of the ABLR algorithm."""
-
-        alpha: float = 1.0
-        beta: float = 1.0
-        learning_rate: float = 0.001
-        batch_size: int = 1000
-        epochs: int = 1
-        feature_space_dims: int = 16
-
+class AblrNetwork(nn.Module):
     def __init__(
         self,
-        space: Space,
-        feature_map: Encoder | type[Encoder] = NeuralNetEncoder,
-        hparams: ABLR.HParams | dict | None = None,
-        normalize_inputs: bool = True,
+        feature_map: Encoder,
+        initial_alpha: float = 1.0,
+        initial_beta: float = 1.0,
     ):
         super().__init__()
-        self.space: Space = space
-        if isinstance(hparams, dict):
-            hparams = self.HParams(**hparams)
-        self.hparams = hparams or self.HParams()
-        self.normalize_inputs = normalize_inputs
-
-        if not isinstance(feature_map, nn.Module):
-            feature_map_type = feature_map
-            feature_map = feature_map_type(
-                input_space=self.space, out_features=self.hparams.feature_space_dims
-            )
+        self.initial_alpha = initial_alpha
+        self.initial_beta = initial_beta
         self.feature_map = feature_map
-        self.alpha = Parameter(torch.as_tensor([self.hparams.alpha], dtype=torch.float))
-        self.beta = Parameter(torch.as_tensor([self.hparams.beta], dtype=torch.float))
 
-        # NOTE: The "'LBFGS' object doesn't have a _params attribute" bug is fixed with the
-        # PatchedLBFGS class.
-        # self.optimizer = torch.optim.LBFGS(self.parameters(), lr=learning_rate)
-        self.optimizer = PatchedLBFGS(self.parameters(), lr=self.hparams.learning_rate)
+        self.alpha = Parameter(torch.as_tensor([self.initial_alpha], dtype=torch.float))
+        self.beta = Parameter(torch.as_tensor([self.initial_beta], dtype=torch.float))
+
         self._predict_dist: Callable[[Tensor], Normal] | None = None
 
-        # NOTE: This is OK since the algo has requirements for flattened reals.
-        input_dims = len(self.space)
+        input_dims: int = self.feature_map.in_features
         self.x_mean: Tensor
         self.x_var: Tensor
         self.register_buffer("x_mean", torch.zeros([input_dims]))
@@ -87,57 +63,6 @@ class ABLR(nn.Module, BaseModel, Model):
         self.register_buffer("y_mean", torch.zeros(()))
         self.register_buffer("y_var", torch.ones(()))
 
-        self.lower, self.upper = build_bounds(self.space)
-
-    def state_dict(  # type: ignore
-        self,
-        destination=None,
-        prefix="",
-        keep_vars: bool = False,
-    ) -> OrderedDict[str, Tensor | Any]:
-        state_dict: OrderedDict[str, Any] = super().state_dict(
-            destination=destination, prefix=prefix, keep_vars=keep_vars  # type: ignore
-        )
-        state_dict["rng"] = torch.random.get_rng_state()
-        state_dict["optimizer"] = self.optimizer.state_dict()
-        return state_dict
-
-    def load_state_dict(self, state_dict: dict, strict: bool = True) -> tuple:
-        optim_state: dict = state_dict.pop("optimizer")
-        self.optimizer.load_state_dict(optim_state)
-        rng: Tensor = state_dict.pop("rng")
-        torch.random.set_rng_state(rng)
-        return super().load_state_dict(state_dict, strict=strict)  # type: ignore
-
-    def set_state(self, state_dict: dict) -> None:
-        """Orion hook used to restore the state of the algorithm."""
-        self.load_state_dict(state_dict)
-
-    def seed(self, seed: int) -> None:
-        """no-op. RoBO_ABLR is expected to seed all pytorch RNGs."""
-        # No need to do anything here really, since the ROBO_ABLR class already seeds all the
-        # pytorch RNG.
-
-    def predict(self, X_test: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Return the predictive mean and variance for the given points."""
-        y_pred_distribution = self.predict_dist(X_test)
-        return (
-            y_pred_distribution.mean.cpu().numpy(),
-            y_pred_distribution.variance.cpu().numpy(),
-        )
-
-    def predict_dist(self, x_test: Tensor | np.ndarray) -> Normal:
-        """Return the predictive distribution for the given points."""
-        with torch.no_grad():
-            if self._predict_dist is None:
-                # re-create the predictive distribution.
-                # NOTE: This gets overwritten every time a new point is observed, so we know for
-                # sure that this is always the most up-to-date predictions.
-                _, self._predict_dist = self(self.X, self.y)
-            x_test = torch.as_tensor(x_test).type_as(self.x_mean)
-            y_pred_dist = self._predict_dist(x_test)
-        return y_pred_dist
-
     def forward(
         self, x_train: Tensor, y_train: Tensor
     ) -> tuple[Tensor, Callable[[Tensor], Normal]]:
@@ -147,164 +72,26 @@ class ABLR(nn.Module, BaseModel, Model):
         NOTE: Assumes that `x_train`, `y_train` and an eventual `x_test` are
         NOT already rescaled/normalized!
         """
-        x_train = torch.as_tensor(x_train)
-        y_train = torch.as_tensor(y_train)
-        # TODO: Do we normalize the portion that has the contextual information?
-        self.x_mean = x_train.mean(0)
-        # minimum variance, because the context vectors are actually always
-        # the same, so the variance along that dimension is 0, which makes
-        # NaN values in the normalized inputs.
-        x_var = x_train.var(0)
-        x_var[x_var.isnan()] = 1e-6
-        x_var[x_var < 1e-6] = 1e-6
-        self.x_var = x_var
+        # Change dtypes and devices if necessary.
+        x_train = x_train.type_as(self.x_mean)
+        y_train = y_train.type_as(self.y_mean)
 
-        if self.y_mean == 0:
-            self.y_mean = y_train.mean(0)
-        if self.y_var == 1:
-            y_var = y_train.var(0)
-            self.y_var = torch.maximum(y_var, torch.zeros_like(y_var) + 1e-5)
+        x_train = self._normalize_x(x_train)
+        y_train = self._normalize_y(y_train)
 
         assert x_train.shape[-1] == self.x_mean.shape[-1], (x_train.shape, self.x_mean)
-        x_train = torch.as_tensor(x_train, dtype=torch.float)
-        y_train = torch.as_tensor(y_train, dtype=torch.float)
-        x_train = self._normalize_x(x_train) if self.normalize_inputs else x_train
-        y_train = self._normalize_y(y_train) if self.normalize_inputs else y_train
         neg_mll, predictive_distribution_fn = self.predictive_mean_and_variance(
             x_train, y_train
         )
 
-        def predict_normalized(x_test: Tensor | np.ndarray) -> Normal:
+        def predictive_distribution(x_test: Tensor) -> Normal:
+            x_test = self._normalize_x(x_test)
             x_test = torch.as_tensor(x_test).type_as(self.x_mean)
-            if self.normalize_inputs:
-                x_test = self._normalize_x(x_test)
             y_pred_dist = predictive_distribution_fn(x_test)  # type: ignore
             y_pred_dist = self._unnormalize_y(y_pred_dist)
             return y_pred_dist
 
-            # y_pred = y_pred_dist.rsample()
-            # return self.unnormalize_y(y_pred)
-
-        return neg_mll, predict_normalized
-
-    def _get_loss(self, x: np.ndarray, y: np.ndarray) -> Tensor:
-        """Gets the loss for the given input and target."""
-        return self(x, y)[0]
-
-    @overload
-    def train(self, mode: bool = True) -> ABLR:
-        """Set the model in train mode following (as a nn.Module subclass)."""
-        ...
-
-    # pylint: disable=arguments-differ
-    @overload
-    def train(self, X: np.ndarray, y: np.ndarray, do_optimize: bool = False) -> None:
-        """Train the algorithm (as a RoBO Model subclass)."""
-        ...
-
-    # pylint: disable=signature-differs
-    def train(
-        self,
-        *args,
-        **kwargs,
-    ):
-        if len(args) == 1 and isinstance(args[0], bool):
-            mode: bool = args[0]
-            return nn.Module.train(self, mode=mode)
-        if "mode" in kwargs:
-            mode: bool = kwargs["mode"]
-            return nn.Module.train(self, mode=mode)
-        bound_args = inspect.signature(self._train_robo).bind(*args, **kwargs)
-        bound_args.apply_defaults()
-        return self._train_robo(
-            X=bound_args.arguments["X"],
-            y=bound_args.arguments["y"],
-            do_optimize=bound_args.arguments["do_optimize"],
-        )
-
-    # pylint: disable=unused-argument
-    def _train_robo(
-        self, X: np.ndarray, y: np.ndarray, do_optimize: bool | None = None
-    ) -> None:
-        """Training method for the algorithm, as a RoBO Model subclass.
-
-        NOTE: This do_optimize parameter is inherited from the robo BaseModel class but isn't
-        used here.
-        """
-
-        if X is None or y is None:
-            raise RuntimeError(
-                "Invalid arguments. X and y can't be None, they should be numpy arrays."
-            )
-
-        # Save the dataset so we can use it to predict the mean and variance later.
-        self.X = torch.as_tensor(X, dtype=torch.float)
-        self.y = torch.as_tensor(y, dtype=torch.float).reshape([-1])
-        self.x_mean = self.X.mean(0)
-        self.x_var = self.X.var(0)
-        self.y_mean = self.y.mean(0)
-        self.y_var = self.y.var(0)
-
-        dataset = TensorDataset(self.X, self.y)
-
-        train_dataset = dataset
-        train_dataloader = DataLoader(
-            train_dataset, batch_size=self.hparams.batch_size, shuffle=True
-        )
-        # TODO: No validation dataset for now.
-        # n = len(dataset)
-        # n_train = int(0.8 * n)
-        # train_dataset = dataset[:n_train]
-        # valid_dataset = dataset[n_train:]
-        # valid_dataloader = DataLoader(valid_dataset, batch_size=100, shuffle=True)
-
-        outer_pbar = tqdm.tqdm(range(self.hparams.epochs), desc="Epoch", disable=True)
-        for epoch in outer_pbar:
-            logger.debug("Start of epoch %s", epoch)
-            with tqdm.tqdm(train_dataloader, position=1, leave=False) as inner_pbar:
-                for i, (x_batch, y_batch) in enumerate(inner_pbar):
-
-                    self.optimizer.zero_grad()
-                    loss, pred_fn = self(x_batch, y_batch)
-                    self._predict_dist = pred_fn
-
-                    if loss.requires_grad:
-                        loss.backward()
-                    else:
-                        logger.warning(
-                            RuntimeWarning(
-                                f"Couldn't train at step {i}, there must have been an "
-                                f"error in the ABLR algebra."
-                            )
-                        )
-
-                    outer_pbar.set_postfix(
-                        {
-                            "Loss:": f"{loss.item():.3f}",
-                            "alpha": self.alpha.item(),
-                            "beta": self.beta.item(),
-                        }
-                    )
-                    # NOTE: LBFGS optimizer requires a closure that recomputes the loss.
-                    closure = partial(self._get_loss, x_batch, y_batch)
-
-                    try:
-                        self.optimizer.step(closure=closure)  # type: ignore
-                    except RuntimeError as err:
-                        warnings.warn(
-                            RuntimeWarning(
-                                f"Ending training early because of error: {err}"
-                            )
-                        )
-                        return
-
-    def get_incumbent(self) -> tuple[np.ndarray, float]:
-        x, y = super().get_incumbent()
-        if isinstance(x, Tensor):
-            x = x.cpu().numpy()
-        if isinstance(y, Tensor):
-            y = y.cpu().numpy()
-        return x, y
+        return neg_mll, predictive_distribution
 
     def predictive_mean_and_variance(
         self, x_t: Tensor, y_t: Tensor
@@ -354,7 +141,7 @@ class ABLR(nn.Module, BaseModel, Model):
             phi_t_star = self.feature_map(new_x)
             # NOTE: Adding the .T on phi_t_star below, since there seems to be some bugs in the
             # shapes..
-            mean = r_t * torch.linalg.multi_dot(e_t.T, l_t_inv, phi_t_star.T)
+            mean = r_t * torch.linalg.multi_dot([e_t.T, l_t_inv, phi_t_star.T])
             return mean.reshape([new_x.shape[0], 1])
 
         def predict_variance(new_x: Tensor) -> Tensor:
@@ -413,8 +200,7 @@ class ABLR(nn.Module, BaseModel, Model):
             phi_t_star = self.feature_map(new_x)
             return r_t * torch.linalg.multi_dot(
                 [
-                    # Note: Still debugging some shape errors.
-                    # (Unpacked the (E_t_inv @ y_t).T term)
+                    # Note: (Unpacked the (E_t_inv @ y_t).T term)
                     y_t.T,  # [1, 40]
                     E_t_inv,  # [40, 40]
                     E_t_inv.T,  # [40, 40]
@@ -452,7 +238,6 @@ class ABLR(nn.Module, BaseModel, Model):
             # logger.debug(f"Predicted variance: {variance}")
             if mean.isnan().any():
                 logger.error("Mean is NaN!")
-                mean = self.y.mean()
             if variance.isnan().any() or (variance <= 0).any():
                 logger.error("Variance is NaN or negative!")
                 variance = torch.max(self.y_var, torch.ones_like(self.y_var) * 1e-3)
@@ -461,6 +246,10 @@ class ABLR(nn.Module, BaseModel, Model):
             return predictive_dist
 
         return negative_log_marginal_likelihood, _predictive_distribution
+
+    def get_loss(self, x: Tensor | np.ndarray, y: Tensor | np.ndarray) -> Tensor:
+        """Gets the loss for the given input and target."""
+        return self(x, y)[0]
 
     def _normalize_x(self, x: T) -> T:
         x -= self.x_mean
@@ -478,114 +267,206 @@ class ABLR(nn.Module, BaseModel, Model):
         return y
 
     def _unnormalize_y(self, y: T) -> T:
-        y *= self.y_var
+        y = y * self.y_var
         y += self.y_mean
         return y
 
 
-class PatchedLBFGS(torch.optim.LBFGS):
-    """Patched version of LBFGS optimizer, that correctly saves the state."""
+# pylint: disable=too-many-instance-attributes
+class ABLR(BaseModel, Model):
+    """Surrogate model for a single task."""
 
-    _params: list
-    _numel_cache: int | None
+    @dataclass
+    class HParams:
+        """Hyper-Parameters of the ABLR algorithm."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        alpha: float = 1.0
+        beta: float = 1.0
+        learning_rate: float = 0.001
+        batch_size: int = 1000
+        epochs: int = 1
+        feature_space_dims: int = 16
 
-    def __getstate__(self):
-        state = super().__getstate__()  # type: ignore
-        state["_params"] = self._params
-        state["_numel_cache"] = self._numel_cache
-        return state
+    def __init__(
+        self,
+        space: Space,
+        feature_map: Encoder | type[Encoder] = NeuralNetEncoder,
+        hparams: ABLR.HParams | dict | None = None,
+    ):
+        super().__init__()
+        self.space: Space = space
+        if isinstance(hparams, dict):
+            hparams = self.HParams(**hparams)
+        self.hparams = hparams or self.HParams()
+        self.normalize_inputs = True
 
-    def state_dict(self, *args, **kwargs) -> dict:
-        state_dict = super().state_dict(*args, **kwargs)
-        state_dict["_params"] = self._params
-        state_dict["_numel_cache"] = self._numel_cache
+        if not isinstance(feature_map, nn.Module):
+            feature_map_type = feature_map
+            feature_map = feature_map_type(
+                input_space=self.space, out_features=self.hparams.feature_space_dims
+            )
+        self.network = AblrNetwork(
+            feature_map=feature_map,
+            initial_alpha=self.hparams.alpha,
+            initial_beta=self.hparams.beta,
+        )
+        # NOTE: The "'LBFGS' object doesn't have a _params attribute" bug is fixed with the
+        # PatchedLBFGS class.
+        # self.optimizer = torch.optim.LBFGS(self.parameters(), lr=learning_rate)
+        self.optimizer = PatchedLBFGS(
+            self.network.parameters(), lr=self.hparams.learning_rate
+        )
+        self.lower, self.upper = build_bounds(self.space)
+
+        self.x_tensor: Tensor | None = None
+        self.y_tensor: Tensor | None = None
+
+    def state_dict(
+        self,
+    ) -> dict[str, Tensor | Any]:
+        state_dict: dict[str, Tensor | Any] = {}
+        state_dict["network"] = self.network.state_dict()
+        state_dict["rng"] = torch.random.get_rng_state()
+        state_dict["optimizer"] = self.optimizer.state_dict()
         return state_dict
 
-    def __setstate__(self, state):
-        super().__setstate__(state)
+    def set_state(self, state_dict: dict) -> None:
+        """Orion hook used to restore the state of the algorithm."""
+        state_dict = state_dict.copy()
+        super().set_state(state_dict)
 
+        network_state = OrderedDict(state_dict.pop("network"))
+        self.network.load_state_dict(network_state, strict=True)
 
-# pylint: disable=too-few-public-methods
-class OffsetFunction(Protocol):
-    """Callable that adds some offset/noise to the given matrix to make the cholesky decomposition
-    work.
+        optim_state: dict = state_dict.pop("optimizer")
+        self.optimizer.load_state_dict(optim_state)
 
-    Parameters
-    ----------
-    some_matrix : Tensor
-        some matrix that will be passed to a function like `torch.linalg.cholesky`.
-    attempt : int
-        the current attempt number
-    max_attempts : int
-        The max number of attempts.
-        NOTE: Currently unused, but the idea is that if we used a "maximum possible noise"
-        below, we could use `attempt` and `max_attempts` to gage how much noise to add.
+        rng: Tensor = state_dict.pop("rng")
+        torch.random.set_rng_state(rng)
 
-    Returns
-    -------
-    Tensor
-        `some_matrix`, with some added offset / noise.
-    """
+    def seed(self, seed: int) -> None:
+        """no-op. RoBO_ABLR is expected to seed all pytorch RNGs."""
+        # No need to do anything here really, since the ROBO_ABLR class already seeds all the
+        # pytorch RNG.
 
-    def __call__(self, some_matrix: Tensor, attempt: int, max_attempts: int) -> Tensor:
-        raise NotImplementedError
+    # pylint: disable=unused-argument
+    def train(
+        self, X: np.ndarray, y: np.ndarray, do_optimize: bool | None = None
+    ) -> None:
+        """Training method for the algorithm, as a RoBO Model subclass.
 
+        NOTE: This do_optimize parameter is inherited from the robo BaseModel class but isn't
+        used here.
+        """
+        # RoBO methods assumes that model.X and model.y are numpy arrays. For CPU tensors it works
+        # fine, but for CUDA tensors it doesn't, so it's best to keep the numpy and torch variants
+        # separately.
+        self.X = X
+        self.y = y
+        # Save the dataset so we can use it to predict the mean and variance later.
+        self.x_tensor = torch.as_tensor(X).type_as(self.network.x_mean)
+        self.y_tensor = torch.as_tensor(y).type_as(self.network.y_mean).reshape([-1])
 
-# pylint: disable=unused-argument
-def offset_function(some_matrix: Tensor, attempt: int, max_attempts: int) -> Tensor:
-    """Offset function that adds an offset * torch.eye(n) to the matrix if it is square.
-    Otherwise, adds some random noise of progressively larger value.
-    """
-    if some_matrix.shape[-2] == some_matrix.shape[-1]:
-        # If the matrix is square, add an offset to the diagonal:
-        offset = 0.1 * (2 ** (attempt - 1))
-        return some_matrix + torch.eye(some_matrix.shape[-1]) * offset
-    # Add progressively larger random noise?
-    noise_std = 0.1 * (2 ** (attempt - 1))
-    return some_matrix + torch.randn_like(some_matrix) * noise_std
+        # Set the means and variances at the start of training.
+        self.network.x_mean = self.x_tensor.mean(0)
+        self.network.x_var = minimum_variance(self.x_tensor, 1e-6)
+        self.network.y_mean = self.y_tensor.mean(0)
+        self.network.y_var = minimum_variance(self.y_tensor, 1e-6)
 
+        dataset = TensorDataset(self.x_tensor, self.y_tensor)
 
-def try_function(
-    function: Callable[[Tensor], Tensor],
-    some_matrix: Tensor,
-    max_attempts: int = 10,
-    offset_function: OffsetFunction = offset_function,
-) -> Tensor:
-    """Attempt to apply the given function of the given matrix, adding progressively
-    larger offset/noise matrices until it works, else raises an error.
-    """
-    result: Tensor | None = None
-    if max_attempts <= 0:
-        raise ValueError("max_attempts must be > 0")
+        # TODO: No validation dataset for now.
+        train_dataset = dataset
+        train_dataloader = DataLoader(
+            train_dataset, batch_size=self.hparams.batch_size, shuffle=True
+        )
+        # n = len(dataset)
+        # n_train = int(0.8 * n)
+        # train_dataset = dataset[:n_train]
+        # valid_dataset = dataset[n_train:]
+        # valid_dataloader = DataLoader(valid_dataset, batch_size=100, shuffle=True)
 
-    attempt = 0
-    error: RuntimeError | None = None
-    for attempt in range(max_attempts):
-        m: Tensor
-        if attempt == 0:
-            m = some_matrix
-        else:
-            m = offset_function(some_matrix, attempt, max_attempts)
+        outer_pbar = tqdm.tqdm(range(self.hparams.epochs), desc="Epoch", disable=True)
+        for epoch in outer_pbar:
+            logger.debug("Start of epoch %s", epoch)
+            with tqdm.tqdm(train_dataloader, position=1, leave=False) as inner_pbar:
+                for i, (x_batch, y_batch) in enumerate(inner_pbar):
 
-        try:
-            result = function(m)
-            if attempt > 0:
-                logger.debug(
-                    "Managed to get the operation to work after %s attempts.", attempt
-                )
-            return result
-        except RuntimeError as e:
-            error = e
+                    self.optimizer.zero_grad()
+                    loss, pred_fn = self.network(x_batch, y_batch)
+                    # TODO: This predictive distribution thingy, should it be based on the latest
+                    # batch? Or the entire dataset?
+                    # NOTE: For now, we update the predictive distribution function after each
+                    # successful batch batch, so that if something goes wrong and we return early,
+                    # we can still use the predictive distribution function to predict the mean
+                    # and variance of samples.
+                    # Additionally, after all the training is done, we set the predictive function
+                    # to be based on the entire dataset.
+                    self._predict_dist = pred_fn
 
-    raise RuntimeError(
-        f"{function.__name__} didn't work, even after {attempt} attempts:\n"
-        f"{error}\n"
-        f"(matrix: {some_matrix})"
-    ) from (error if error is not None else None)
+                    if loss.requires_grad:
+                        loss.backward()
+                    else:
+                        logger.warning(
+                            RuntimeWarning(
+                                f"Couldn't train at step {i}, there must have been an "
+                                f"error in the ABLR algebra."
+                            )
+                        )
 
+                    outer_pbar.set_postfix(
+                        {
+                            "Loss:": f"{loss.item():.3f}",
+                            "alpha": self.network.alpha.item(),
+                            "beta": self.network.beta.item(),
+                        }
+                    )
+                    # NOTE: LBFGS optimizer requires a closure that recomputes the loss.
+                    closure = partial(
+                        torch.no_grad()(self.network.get_loss), x_batch, y_batch
+                    )
 
-try_get_cholesky = partial(try_function, torch.linalg.cholesky)
-try_get_cholesky_inverse = partial(try_function, torch.cholesky_inverse)
+                    try:
+                        self.optimizer.step(closure=closure)  # type: ignore
+                    except RuntimeError as err:
+                        warnings.warn(
+                            RuntimeWarning(
+                                f"Ending training early because of error: {err}"
+                            )
+                        )
+                        return
+
+        # Create the predictive distribution function based on the entire dataset.
+        with torch.no_grad():
+            dataset_loss, self._predict_dist = self.network(
+                self.x_tensor, self.y_tensor
+            )
+            avg_sample_loss = dataset_loss / len(self.x_tensor)
+            logger.info("Dataset loss at the end of training: %s", avg_sample_loss)
+
+    def predict(self, X_test: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Return the mean and variance of the predictive distribution for the given points."""
+        y_pred_distribution = self.predict_dist(X_test)
+        return (
+            y_pred_distribution.mean.cpu().numpy(),
+            y_pred_distribution.variance.cpu().numpy(),
+        )
+
+    @torch.no_grad()
+    def predict_dist(self, x_test: Tensor | np.ndarray) -> Normal:
+        """Return the predictive distribution for the given points."""
+        if self._predict_dist is None:
+            raise RuntimeError(
+                "No predictive distribution available since model hasn't been trained."
+            )
+        x_test = torch.as_tensor(x_test).type_as(self.network.x_mean)
+        y_pred_dist = self._predict_dist(x_test)
+        return y_pred_dist
+
+    def get_incumbent(self) -> tuple[np.ndarray, float]:
+        x, y = super().get_incumbent()
+        if isinstance(x, Tensor):
+            x = x.cpu().numpy()
+        if isinstance(y, Tensor):
+            y = y.cpu().numpy()
+        return x, y

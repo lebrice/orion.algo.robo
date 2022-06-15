@@ -60,7 +60,6 @@ class RoBO_ABLR(RoBO[ABLR]):
         maximizer: MaximizerName = "random",
         acquisition_func: AcquisitionFnName = "ei",
         hparams: ABLR.HParams | dict | None = None,
-        normalize_inputs: bool = True,
         encoder_type: type[Encoder] = NeuralNetEncoder,
     ):
         super().__init__(
@@ -71,7 +70,6 @@ class RoBO_ABLR(RoBO[ABLR]):
             acquisition_func=acquisition_func,
         )
         self.hparams = hparams
-        self.normalize_inputs = normalize_inputs
         self.encoder_type = encoder_type
 
     # pylint: disable=missing-function-docstring
@@ -80,7 +78,6 @@ class RoBO_ABLR(RoBO[ABLR]):
             self.space,
             hparams=self.hparams,
             feature_map=self.encoder_type,
-            normalize_inputs=self.normalize_inputs,
         )
 
     # pylint: disable=missing-function-docstring
