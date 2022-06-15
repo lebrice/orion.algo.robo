@@ -16,7 +16,7 @@ import numpy as np
 import torch
 import tqdm
 from orion.algo.space import Space
-from pybnn.base_model import BaseModel
+from robo.models.base_model import BaseModel
 from torch import Tensor, nn
 from torch.nn.parameter import Parameter
 from torch.utils.data import DataLoader, TensorDataset
@@ -36,6 +36,8 @@ logger = get_logger(__name__)
 
 
 class AblrNetwork(nn.Module):
+    """Network used by the ABLR model."""
+
     def __init__(
         self,
         feature_map: Encoder,
@@ -349,14 +351,14 @@ class ABLR(BaseModel, Model):
         # No need to do anything here really, since the ROBO_ABLR class already seeds all the
         # pytorch RNG.
 
-    # pylint: disable=unused-argument
+    # pylint: disable=unused-argument,arguments-differ
     def train(
         self, X: np.ndarray, y: np.ndarray, do_optimize: bool | None = None
     ) -> None:
         """Training method for the algorithm, as a RoBO Model subclass.
 
-        NOTE: This do_optimize parameter is inherited from the robo BaseModel class but isn't
-        used here.
+        NOTE: This do_optimize parameter is not inherited from the robo BaseModel class, but is
+        passed by the RoBO Bayesian optimization solver.
         """
         # RoBO methods assumes that model.X and model.y are numpy arrays. For CPU tensors it works
         # fine, but for CUDA tensors it doesn't, so it's best to keep the numpy and torch variants
