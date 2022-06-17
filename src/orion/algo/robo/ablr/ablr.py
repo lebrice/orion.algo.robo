@@ -80,9 +80,8 @@ class RoBO_ABLR(RoBO[ABLR]):
             feature_map=self.encoder_type,
         )
 
-    # pylint: disable=missing-function-docstring
     def seed_rng(self, seed: int) -> None:
-        # Seed the random + numpy + RoBo-specific RNG via the base class.
+        """Seed the random + numpy + RoBo-specific RNG via the base class."""
         super().seed_rng(seed)
         # Additionally seed the PyTorch RNG.
         torch_seed = self.rng.randint(0, int(1e8))
