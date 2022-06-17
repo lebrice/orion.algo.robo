@@ -1,7 +1,6 @@
 """ Utility functions for linalg operations that may fail."""
 from __future__ import annotations
 
-from functools import partial
 from logging import getLogger as get_logger
 from typing import Callable
 
@@ -10,18 +9,6 @@ from torch import Tensor
 from typing_extensions import Protocol
 
 logger = get_logger(__name__)
-
-
-def minimum_variance(v: Tensor, minimum_variance=1e-8):
-    """
-    Minimum variance, because the context vectors are actually always
-    the same, so the variance along that dimension is 0, which makes
-    NaN values in the normalized inputs.
-    """
-    variance = v.var(0)
-    variance = variance.nan_to_num(minimum_variance)
-    variance[variance < minimum_variance] = minimum_variance
-    return variance
 
 
 # pylint: disable=too-few-public-methods
@@ -101,7 +88,3 @@ def try_function(
         f"{error}\n"
         f"(matrix: {some_matrix})"
     ) from (error if error is not None else None)
-
-
-try_get_cholesky = partial(try_function, torch.linalg.cholesky)
-try_get_cholesky_inverse = partial(try_function, torch.cholesky_inverse)

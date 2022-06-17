@@ -24,11 +24,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from orion.algo.robo.ablr.encoders import Encoder, NeuralNetEncoder
 from orion.algo.robo.ablr.normal import Normal
 from orion.algo.robo.ablr.patched_lbfgs import PatchedLBFGS
-from orion.algo.robo.ablr.utils import (
-    minimum_variance,
-    try_get_cholesky,
-    try_get_cholesky_inverse,
-)
+from orion.algo.robo.ablr.utils import try_function
 from orion.algo.robo.base import Model, build_bounds
 
 T = TypeVar("T", np.ndarray, Tensor, Normal)
@@ -128,9 +124,10 @@ class AblrNetwork(nn.Module):
     ):
         n = x_t.shape[0]
 
-        k_t = r_t * phi_t.T @ phi_t
-        l_t = try_get_cholesky(k_t)
-        l_t_inv = try_get_cholesky_inverse(l_t)
+        k_t = r_t * (phi_t.T @ phi_t)
+        l_t = try_function(torch.linalg.cholesky, k_t, max_attempts=2)
+        k_t_inv = try_function(torch.cholesky_inverse, l_t, max_attempts=1)
+        l_t_inv = l_t.T @ k_t_inv
         e_t = torch.linalg.multi_dot([l_t_inv, phi_t.T, y_t])
 
         negative_log_marginal_likelihood = (
@@ -174,8 +171,9 @@ class AblrNetwork(nn.Module):
 
         try:
             k_t = torch.eye(n) + r_t * phi_t @ phi_t.T
-            E_t = try_get_cholesky(k_t)
-            E_t_inv = try_get_cholesky_inverse(E_t)  # TODO: Is it k_t or E_t here?
+            E_t = try_function(torch.linalg.cholesky, k_t, max_attempts=2)
+            k_t_inv = torch.cholesky_inverse(E_t)
+            E_t_inv = E_t.T @ k_t_inv
             negative_log_marginal_likelihood = (
                 -n / 2 * torch.log(self.beta)
                 + self.beta / 2 * ((E_t_inv @ y_t) ** 2).sum()
@@ -371,9 +369,9 @@ class ABLR(BaseModel, Model):
 
         # Set the means and variances at the start of training.
         self.network.x_mean = self.x_tensor.mean(0)
-        self.network.x_var = minimum_variance(self.x_tensor, 1e-6)
+        self.network.x_var = self.x_tensor.var(0).clamp_min_(1e-6)
         self.network.y_mean = self.y_tensor.mean(0)
-        self.network.y_var = minimum_variance(self.y_tensor, 1e-6)
+        self.network.y_var = self.y_tensor.var(0).clamp_min_(1e-6)
 
         dataset = TensorDataset(self.x_tensor, self.y_tensor)
 
