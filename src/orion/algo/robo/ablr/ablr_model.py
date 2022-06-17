@@ -126,7 +126,7 @@ class AblrNetwork(nn.Module):
 
         k_t = r_t * (phi_t.T @ phi_t)
         l_t = try_function(torch.linalg.cholesky, k_t, max_attempts=2)
-        k_t_inv = try_function(torch.cholesky_inverse, l_t, max_attempts=1)
+        k_t_inv = torch.cholesky_inverse(l_t)
         l_t_inv = l_t.T @ k_t_inv
         e_t = torch.linalg.multi_dot([l_t_inv, phi_t.T, y_t])
 
