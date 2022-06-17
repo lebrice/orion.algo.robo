@@ -363,7 +363,7 @@ class ABLR(BaseModel, Model):
         # separately.
         self.X = X
         self.y = y
-        # Save the dataset so we can use it to predict the mean and variance later.
+
         self.x_tensor = torch.as_tensor(X).type_as(self.network.x_mean)
         self.y_tensor = torch.as_tensor(y).type_as(self.network.y_mean).reshape([-1])
 
@@ -375,7 +375,7 @@ class ABLR(BaseModel, Model):
 
         dataset = TensorDataset(self.x_tensor, self.y_tensor)
 
-        # TODO: No validation dataset for now.
+        # NOTE: Not using a validation dataset for now.
         train_dataset = dataset
         train_dataloader = DataLoader(
             train_dataset, batch_size=self.hparams.batch_size, shuffle=True
@@ -396,8 +396,6 @@ class ABLR(BaseModel, Model):
 
                     self.optimizer.zero_grad()
                     loss, pred_fn = self.network(x_batch, y_batch)
-                    # TODO: This predictive distribution thingy, should it be based on the latest
-                    # batch? Or the entire dataset?
                     # NOTE: For now, we update the predictive distribution function after each
                     # successful batch batch, so that if something goes wrong and we return early,
                     # we can still use the predictive distribution function to predict the mean
