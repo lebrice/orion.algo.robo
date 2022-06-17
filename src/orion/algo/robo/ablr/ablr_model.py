@@ -391,7 +391,9 @@ class ABLR(BaseModel, Model):
         outer_pbar = tqdm.tqdm(range(self.hparams.epochs), desc="Epoch", disable=True)
         for epoch in outer_pbar:
             logger.debug("Start of epoch %s", epoch)
-            with tqdm.tqdm(train_dataloader, position=1, leave=False) as inner_pbar:
+            with tqdm.tqdm(
+                train_dataloader, position=1, leave=False, disable=True
+            ) as inner_pbar:
                 for i, (x_batch, y_batch) in enumerate(inner_pbar):
 
                     self.optimizer.zero_grad()
