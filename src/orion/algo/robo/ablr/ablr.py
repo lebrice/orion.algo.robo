@@ -48,8 +48,8 @@ class RoBO_ABLR(RoBO[ABLR]):
     hparams: dict | ABLR.HParams | None
         Hyperparameters for the ABLR model.
         If None, the default hyperparameters will be used.
-    normalize_inputs: bool
-        Whether to normalize the inputs.
+    encoder_type: type[Encoder]
+        Type of encoder to use.
     """
 
     def __init__(
