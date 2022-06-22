@@ -26,7 +26,7 @@ from robo.maximizers.scipy_optimizer import SciPyOptimizer
 from robo.models.base_model import BaseModel
 from robo.priors.default_priors import DefaultPrior
 from robo.solver.bayesian_optimization import BayesianOptimization
-from typing_extensions import Literal
+from typing_extensions import Literal, Protocol
 
 AcquisitionFnName = Literal["ei", "log_ei", "pi", "lcb"]
 MaximizerName = Literal["random", "scipy", "differential_evolution"]
@@ -122,7 +122,7 @@ def build_acquisition_func(acquisition_func: AcquisitionFnName, model: BaseModel
 
 
 def build_optimizer(
-    model: WrappedRoboModel,
+    model: Model,
     maximizer: MaximizerName,
     acquisition_func: BaseAcquisitionFunction,
 ) -> BayesianOptimization:
@@ -175,8 +175,8 @@ def build_optimizer(
     return bo
 
 
-class WrappedRoboModel(BaseModel, ABC):
-    """Base class that contains the methods we add to the models from ROBO."""
+class Model(Protocol):
+    """Describes the properties and methods that the algo base class below expects of the model."""
 
     lower: numpy.ndarray
     upper: numpy.ndarray
@@ -192,10 +192,9 @@ class WrappedRoboModel(BaseModel, ABC):
     @abstractmethod
     def set_state(self, state_dict: dict) -> None:
         """Return the current state of the optimizer so that it can be restored"""
-        ...
 
 
-ModelType = TypeVar("ModelType", bound=WrappedRoboModel)
+ModelType = TypeVar("ModelType", bound=Model)
 
 
 class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
@@ -369,7 +368,7 @@ class RoBO(BaseAlgorithm, ABC, Generic[ModelType]):
             self._initialize()
         return super().observe(trials)
 
-    def suggest(self, num: int) -> list[Trial] | None:
+    def suggest(self, num: int) -> list[Trial]:
         """Suggest a `num`ber of new sets of parameters.
 
         Perform a step towards negative gradient and suggest that point.

@@ -28,8 +28,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from orion.algo.robo.base import (
     AcquisitionFnName,
     MaximizerName,
+    Model,
     RoBO,
-    WrappedRoboModel,
     build_bounds,
     build_kernel,
     infer_n_hypers,
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 # pylint: disable = too-many-instance-attributes
-class OrionDNGOWrapper(DNGO, WrappedRoboModel):
+class OrionDNGOWrapper(DNGO, Model):
     """
     Wrapper for PyBNN's DNGO model
 
@@ -350,8 +350,11 @@ class OrionDNGOWrapper(DNGO, WrappedRoboModel):
 
             self.models.append(model)
 
-    @BaseModel._check_shapes_predict  # type: ignore  pylint: disable=protected-access
-    def predict(self, X_test: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    # pylint: disable=protected-access
+    @BaseModel._check_shapes_predict  # type: ignore
+    def predict(
+        self, X_test: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:  # pylint: disable=unsubscriptable-object
         r"""
         Returns the predictive mean and variance of the objective function at
         the given test points.
