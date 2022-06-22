@@ -36,6 +36,7 @@ setup_args = dict(
             # "robo_randomforest = orion.algo.robo.randomforest:RoBO_RandomForest",
             "robo_dngo = orion.algo.robo.dngo:RoBO_DNGO",
             "robo_bohamiann = orion.algo.robo.bohamiann:RoBO_BOHAMIANN",
+            "robo_ablr = orion.algo.robo.ablr.ablr:RoBO_ABLR",
         ],
     },
     install_requires=[
